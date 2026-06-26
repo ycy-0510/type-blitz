@@ -1,0 +1,30 @@
+version: '3.8'
+
+# Production: pull the two prebuilt images published by the GitHub Action
+# (ghcr.io/ycy-0510/typerace-*) instead of building locally.
+#
+# Usage:
+#   cp .env.example .env   # fill in TURNSTILE_SECRET_KEY
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Note: the client's TURNSTILE_SITE_KEY is baked into its image at build time
+# by the CI workflow, so it is NOT needed here at runtime.
+
+services:
+  server:
+    image: ghcr.io/ycy-0510/typerace-server:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+    restart: unless-stopped
+
+  client:
+    image: ghcr.io/ycy-0510/typerace-client:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    restart: unless-stopped

@@ -1,12 +1,10 @@
-/* Sublime Text Monokai Theme Colors */
+@import "tailwindcss";
+
 :root {
     --bg-color: #272822;
     --text-untyped: #75715e;
-    /* 暗灰色 */
     --text-correct: #a6e22e;
-    /* 亮綠色 */
     --text-error: #f92672;
-    /* 粉紅色 */
     --text-highlight: #f8f8f2;
 }
 
@@ -14,19 +12,10 @@ body {
     background-color: var(--bg-color);
     color: var(--text-highlight);
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    /* 代碼等寬字體 */
     margin: 0;
     overflow: hidden;
 }
 
-#text-container {
-    font-size: 1.5rem;
-    line-height: 2.2rem;
-    letter-spacing: 0.05em;
-    word-break: break-word;
-}
-
-/* 單個字元的樣式 */
 .char {
     color: var(--text-untyped);
     transition: color 0.1s ease;
@@ -43,7 +32,6 @@ body {
     text-decoration-color: var(--text-error);
 }
 
-/* Sublime 風格的游標 (恆亮) */
 .char.current {
     color: var(--text-highlight);
 }
@@ -58,7 +46,6 @@ body {
     background-color: var(--text-highlight);
 }
 
-/* 最佳紀錄破紀錄時的閃爍動畫 */
 .new-best {
     color: var(--text-correct) !important;
     text-shadow: 0 0 10px var(--text-correct);
@@ -66,35 +53,15 @@ body {
 }
 
 @keyframes pulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.1);
-    }
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
 }
 
-/* 倒數計時動畫 */
 @keyframes pop {
-    0% {
-        transform: scale(0.5);
-        opacity: 0;
-    }
-
-    50% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 0;
-    }
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 .animate-pop {
-    animation: pop 1s ease-in-out forwards;
+    animation: pop 0.3s ease-out forwards;
 }

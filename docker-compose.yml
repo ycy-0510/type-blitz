@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    restart: unless-stopped
