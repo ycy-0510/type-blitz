@@ -19,7 +19,10 @@ interface RoomState {
   quoteIndex: number
 }
 
-export const socket = io(window.location.hostname === 'localhost' ? 'http://localhost:3001' : '/', {
+// Connect same-origin: Socket.IO talks to /socket.io on whatever host serves
+// the page. In Docker that's nginx -> server:3001; in `vite dev` the Vite
+// server proxies /socket.io to localhost:3001 (see vite.config.ts).
+export const socket = io({
   autoConnect: false
 })
 

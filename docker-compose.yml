@@ -1,10 +1,13 @@
 version: '3.8'
 
+# Single exposed port: cloudflared / the browser only ever touch the client
+# (nginx :80). nginx reverse-proxies /socket.io/ to the server over the
+# internal compose network, so the backend needs no published port.
+
 services:
   server:
     build: ./server
-    ports:
-      - "3001:3001"
+    # No published port — reached internally as "server:3001" by nginx.
     environment:
       - PORT=3001
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
@@ -16,7 +19,7 @@ services:
       args:
         VITE_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - server
     restart: unless-stopped
