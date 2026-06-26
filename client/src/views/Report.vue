@@ -8,6 +8,10 @@ const props = defineProps<{
   accuracy: number
 }>()
 
+const emit = defineEmits<{
+  (e: 'again'): void
+}>()
+
 const router = useRouter()
 const showButtons = ref(false)
 
@@ -66,9 +70,8 @@ const ranking = computed(() => {
 
 const handlePlayAgain = () => {
   if (store.isSinglePlayer) {
-    store.reset()
-    store.isSinglePlayer = true
-    router.push('/play')
+    // Restart in place (same /play route) with a fresh quote.
+    emit('again')
   } else {
     // Only host can trigger server play_again, but we navigate ourselves to the room anyway
     if (store.isHost) {

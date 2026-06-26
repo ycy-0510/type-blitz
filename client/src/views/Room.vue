@@ -15,6 +15,8 @@ const requireNickname = ref(false)
 const turnstileToken = ref<string | null>(null)
 const onVerified = (token: string) => { turnstileToken.value = token }
 const onExpired = () => { turnstileToken.value = null }
+const joining = ref(false)
+const joinError = ref('')
 const inviteLink = ref(`${window.location.origin}/room/${roomId}`)
 const copied = ref(false)
 
@@ -27,7 +29,9 @@ onMounted(() => {
     requireNickname.value = true
   }
 
-  socket.on('match_starting', () => {
+  socket.on('match_starting', (payload?: { startAt?: number }) => {
+    // Shared countdown anchor from the server so every client hits GO together.
+    store.matchStartAt = payload?.startAt ?? (Date.now() + 10000)
     router.push('/play')
   })
 })
@@ -36,19 +40,44 @@ onUnmounted(() => {
   socket.off('match_starting')
 })
 
-const joinRoom = () => {
+const joinRoom = async () => {
   if (!nickname.value.trim()) return
   if (turnstileToken.value === null) return // wait for human verification
+  if (joining.value) return
+
+  joining.value = true
+  joinError.value = ''
   store.reset()
   store.saveNickname(nickname.value.trim())
   store.roomId = roomId
-  store.connect()
+
+  try {
+    await store.connectAndWait()
+  } catch {
+    joining.value = false
+    joinError.value = 'Connection failed. Please try again.'
+    return
+  }
+
+  const onJoined = () => {
+    cleanup()
+    joining.value = false
+    requireNickname.value = false
+  }
+  const onError = (msg: string) => {
+    cleanup()
+    joining.value = false
+    joinError.value = msg || 'Failed to join room.'
+    turnstileToken.value = null // single-use token; require re-verify
+  }
+  const cleanup = () => {
+    socket.off('room_joined', onJoined)
+    socket.off('room_error', onError)
+  }
+  socket.on('room_joined', onJoined)
+  socket.on('room_error', onError)
 
   socket.emit('join_room', { roomId, nickname: store.nickname, token: turnstileToken.value })
-
-  socket.once('room_joined', () => {
-    requireNickname.value = false
-  })
 }
 
 const copyLink = async () => {
@@ -101,12 +130,13 @@ const leaveRoom = () => {
         autofocus
       >
       <Turnstile @verified="onVerified" @expired="onExpired" />
+      <p v-if="joinError" class="mt-3 text-center text-[#f92672] text-sm">{{ joinError }}</p>
       <button
         @click="joinRoom"
-        :disabled="!nickname.trim() || turnstileToken === null"
+        :disabled="!nickname.trim() || turnstileToken === null || joining"
         class="w-full mt-6 bg-[#a6e22e] text-black font-bold py-3 rounded hover:opacity-80 transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        JOIN
+        {{ joining ? 'JOINING…' : (turnstileToken === null ? 'VERIFYING…' : 'JOIN') }}
       </button>
       <button @click="router.push('/')" class="w-full mt-2 text-gray-500 hover:text-white py-2 text-sm">Cancel</button>
     </div>

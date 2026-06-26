@@ -15,6 +15,9 @@ const turnstileToken = ref<string | null>(null)
 const onVerified = (token: string) => { turnstileToken.value = token }
 const onExpired = () => { turnstileToken.value = null }
 
+const creating = ref(false)
+const createError = ref('')
+
 const handleSinglePlayer = () => {
   store.reset()
   store.isSinglePlayer = true
@@ -24,24 +27,54 @@ const handleSinglePlayer = () => {
 const promptCreate = () => {
   modalAction.value = 'create'
   turnstileToken.value = null
+  creating.value = false
+  createError.value = ''
   showModal.value = true
 }
 
-const submitNickname = () => {
+const submitNickname = async () => {
   if (!nickname.value.trim()) return
   if (turnstileToken.value === null) return // wait for human verification
+  if (creating.value) return // already in flight — avoid double submits
 
+  creating.value = true
+  createError.value = ''
   store.reset()
   store.saveNickname(nickname.value.trim())
-  store.connect()
 
-  socket.emit('create_room', { nickname: store.nickname, token: turnstileToken.value })
+  // Make sure we're actually connected before emitting, otherwise the
+  // create_room packet can be sent on a half-open socket and silently lost
+  // (you'd land in a room with nobody in it).
+  try {
+    await store.connectAndWait()
+  } catch {
+    creating.value = false
+    createError.value = 'Connection failed. Please try again.'
+    return
+  }
 
-  socket.once('room_created', (id: string) => {
+  const onCreated = (id: string) => {
+    cleanup()
     store.roomId = id
     store.isHost = true
+    creating.value = false
     router.push(`/room/${id}`)
-  })
+  }
+  const onError = (msg: string) => {
+    cleanup()
+    creating.value = false
+    createError.value = msg || 'Failed to create room.'
+    // The Turnstile token is single-use; force a re-verify before retrying.
+    turnstileToken.value = null
+  }
+  const cleanup = () => {
+    socket.off('room_created', onCreated)
+    socket.off('room_error', onError)
+  }
+  socket.on('room_created', onCreated)
+  socket.on('room_error', onError)
+
+  socket.emit('create_room', { nickname: store.nickname, token: turnstileToken.value })
 }
 
 const closeModal = () => {
@@ -144,12 +177,13 @@ const closeModal = () => {
           autofocus
         >
         <Turnstile @verified="onVerified" @expired="onExpired" />
+        <p v-if="createError" class="mt-3 text-center text-[#f92672] text-sm">{{ createError }}</p>
         <button
           @click="submitNickname"
-          :disabled="!nickname.trim() || turnstileToken === null"
+          :disabled="!nickname.trim() || turnstileToken === null || creating"
           class="w-full mt-6 bg-[#f92672] text-white font-bold py-3 rounded hover:opacity-80 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          CREATE GROUP
+          {{ creating ? 'CREATING…' : (turnstileToken === null ? 'VERIFYING…' : 'CREATE GROUP') }}
         </button>
       </div>
     </div>

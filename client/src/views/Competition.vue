@@ -9,17 +9,22 @@ import Report from './Report.vue'
 
 const router = useRouter()
 
+const COUNTDOWN_MS = 10000
 const countdown = ref(0)
-const countdownInterval = ref<any>(null)
+let countdownRaf = 0
 const roomStatus = ref<'playing' | 'finished'>('playing')
 const isGameActive = ref(false)
 
 const startTime = ref<number | null>(null)
 const timerInterval = ref<any>(null)
 
+// Single-player quote index — a stable ref so the quote doesn't change on
+// unrelated re-renders, and can be deliberately re-rolled on "play again".
+const singleQuoteIndex = ref(Math.floor(Math.random() * quotes.length))
 const quote = computed(() => {
-  const idx = store.room ? store.room.quoteIndex : (store.isSinglePlayer ? Math.floor(Math.random() * quotes.length) : 0)
-  return quotes[idx]
+  if (store.room) return quotes[store.room.quoteIndex]
+  if (store.isSinglePlayer) return quotes[singleQuoteIndex.value]
+  return quotes[0]
 })
 
 const wpm = ref(0)
@@ -43,28 +48,58 @@ const topPlayers = computed(() => {
   return top3
 })
 
+// Countdown driven by requestAnimationFrame against a fixed end time (startAt).
+// Anchoring to a timestamp keeps the displayed seconds accurate (no setInterval
+// drift) and — using the server-provided startAt in multiplayer — makes every
+// client hit GO at the same moment. rAF also avoids background-tab 1s throttling.
+const startCountdown = (startAt: number) => {
+  cancelAnimationFrame(countdownRaf)
+  let lastWhole = Math.max(Math.ceil((startAt - Date.now()) / 1000), 0)
+  countdown.value = lastWhole
+
+  const tick = () => {
+    const remaining = startAt - Date.now()
+    const whole = Math.max(Math.ceil(remaining / 1000), 0)
+    if (whole !== lastWhole) {
+      lastWhole = whole
+      countdown.value = whole
+      // Racing-style countdown: ticks on the last 3 seconds, a longer tone on GO
+      if (whole > 0 && whole <= 3) playBeep('tick')
+      else if (whole === 0) playBeep('go')
+    }
+    if (remaining <= 0) {
+      startGame()
+      return
+    }
+    countdownRaf = requestAnimationFrame(tick)
+  }
+  countdownRaf = requestAnimationFrame(tick)
+}
+
+// Single-player "play again": reset state in place with a fresh quote.
+const restartSingle = () => {
+  clearInterval(timerInterval.value)
+  cancelAnimationFrame(countdownRaf)
+  singleQuoteIndex.value = Math.floor(Math.random() * quotes.length)
+  wpm.value = 0
+  accuracy.value = 100
+  totalKeystrokes.value = 0
+  startTime.value = null
+  isGameActive.value = false
+  roomStatus.value = 'playing'
+  startCountdown(Date.now() + COUNTDOWN_MS)
+}
+
 onMounted(() => {
   if (!store.isSinglePlayer && !store.room) {
     router.push('/')
     return
   }
 
-  // Start sequence
-  countdown.value = 10
-  countdownInterval.value = setInterval(() => {
-    countdown.value--
-    // Racing-style countdown: ticks on the last 3 seconds, a longer tone on GO
-    if (countdown.value > 0 && countdown.value <= 3) {
-      playBeep('tick')
-    } else if (countdown.value <= 0) {
-      playBeep('go')
-    }
-    if (countdown.value <= 0) {
-      clearInterval(countdownInterval.value)
-      startGame()
-    }
-  }, 1000)
-  
+  // Multiplayer uses the server's shared anchor; single-player counts locally.
+  const startAt = store.room && store.matchStartAt ? store.matchStartAt : Date.now() + COUNTDOWN_MS
+  startCountdown(startAt)
+
   socket.on('room_update', (room) => {
     if (room.status === 'finished') {
       roomStatus.value = 'finished'
@@ -73,7 +108,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  clearInterval(countdownInterval.value)
+  cancelAnimationFrame(countdownRaf)
   clearInterval(timerInterval.value)
   socket.off('room_update')
 })
@@ -167,6 +202,7 @@ const handleFinish = () => {
         v-if="roomStatus === 'finished'"
         :wpm="wpm"
         :accuracy="accuracy"
+        @again="restartSingle"
       />
 
       <template v-else-if="quote">

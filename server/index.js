@@ -160,8 +160,13 @@ io.on('connection', (socket) => {
         p.accuracy = undefined;
       });
       
+      // Shared countdown anchor: everyone counts down to the same wall-clock
+      // moment instead of each client running its own independent 10s timer.
+      const startAt = Date.now() + 10000;
+      room.startAt = startAt;
+
       updateRoom(roomId);
-      io.to(roomId).emit('match_starting');
+      io.to(roomId).emit('match_starting', { startAt });
     }
   });
 

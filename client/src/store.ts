@@ -52,6 +52,7 @@ export const store = reactive({
   room: null as RoomState | null,
   myId: '',
   isSinglePlayer: false,
+  matchStartAt: 0, // server-provided countdown anchor (epoch ms) for multiplayer
   history: loadHistory(),
   
   saveNickname(name: string) {
@@ -75,6 +76,25 @@ export const store = reactive({
       socket.connect()
     }
   },
+
+  // Resolve only once the socket is actually connected, so emits aren't fired
+  // (and possibly dropped) on a half-open connection. Rejects on error/timeout.
+  connectAndWait(timeoutMs = 8000): Promise<void> {
+    if (socket.connected) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timer)
+        socket.off('connect', onConnect)
+        socket.off('connect_error', onError)
+      }
+      const onConnect = () => { cleanup(); resolve() }
+      const onError = (err: Error) => { cleanup(); reject(err) }
+      const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')) }, timeoutMs)
+      socket.on('connect', onConnect)
+      socket.on('connect_error', onError)
+      socket.connect()
+    })
+  },
   
   reset(disconnect = false) {
     this.roomId = ''
@@ -97,5 +117,6 @@ socket.on('room_update', (roomState: RoomState) => {
 })
 
 socket.on('room_error', (msg: string) => {
-  alert(msg)
+  // Create/join views surface this inline; keep a console fallback for anything else.
+  console.warn('room_error:', msg)
 })
