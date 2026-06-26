@@ -24,10 +24,10 @@ jobs:
         include:
           - name: client
             context: ./client
-            image: typerace-client
+            image: typeblitz-client
           - name: server
             context: ./server
-            image: typerace-server
+            image: typeblitz-server
 
     steps:
       - name: Checkout

@@ -1,7 +1,10 @@
 version: '3.8'
 
 # Production: pull the two prebuilt images published by the GitHub Action
-# (ghcr.io/ycy-0510/typerace-*) instead of building locally.
+# (ghcr.io/ycy-0510/typeblitz-*) instead of building locally.
+#
+# Topology: cloudflared -> client (nginx :80) -> /socket.io/ proxied to server:3001.
+# Everything is one origin, so only the client needs to be exposed.
 #
 # Usage:
 #   cp .env.example .env   # fill in TURNSTILE_SECRET_KEY
@@ -13,18 +16,19 @@ version: '3.8'
 
 services:
   server:
-    image: ghcr.io/ycy-0510/typerace-server:latest
-    ports:
-      - "3001:3001"
+    image: ghcr.io/ycy-0510/typeblitz-server:latest
+    # No published port: only the client (nginx) reaches it over the internal
+    # compose network at "server:3001".
     environment:
       - PORT=3001
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
     restart: unless-stopped
 
   client:
-    image: ghcr.io/ycy-0510/typerace-client:latest
+    image: ghcr.io/ycy-0510/typeblitz-client:latest
+    # Point your cloudflared tunnel at this (http://localhost:8080).
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - server
     restart: unless-stopped

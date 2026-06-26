@@ -35,7 +35,7 @@ export interface MatchRecord {
 
 const loadHistory = (): MatchRecord[] => {
   try {
-    const data = localStorage.getItem('typerace_history')
+    const data = localStorage.getItem('typeblitz_history')
     return data ? JSON.parse(data) : []
   } catch {
     return []
@@ -43,7 +43,7 @@ const loadHistory = (): MatchRecord[] => {
 }
 
 export const store = reactive({
-  nickname: localStorage.getItem('typerace_nickname') || '',
+  nickname: localStorage.getItem('typeblitz_nickname') || '',
   roomId: '',
   isHost: false,
   room: null as RoomState | null,
@@ -53,7 +53,7 @@ export const store = reactive({
   
   saveNickname(name: string) {
     this.nickname = name
-    localStorage.setItem('typerace_nickname', name)
+    localStorage.setItem('typeblitz_nickname', name)
   },
 
   saveRecord(record: Omit<MatchRecord, 'id' | 'date'>) {
@@ -64,7 +64,7 @@ export const store = reactive({
     }
     this.history.unshift(newRecord)
     if (this.history.length > 50) this.history.pop()
-    localStorage.setItem('typerace_history', JSON.stringify(this.history))
+    localStorage.setItem('typeblitz_history', JSON.stringify(this.history))
   },
 
   connect() {
