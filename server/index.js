@@ -148,18 +148,34 @@ io.on('connection', (socket) => {
   socket.on('host_start', (roomId) => {
     const room = rooms.get(roomId);
     if (room && room.players[socket.id]?.isHost) {
+      // Coming from a finished match: anyone who didn't hit PLAY AGAIN is
+      // considered to have left the group, so drop them before starting.
+      if (room.status === 'finished') {
+        for (const id of Object.keys(room.players)) {
+          if (!room.players[id].rematch) {
+            const s = io.sockets.sockets.get(id);
+            if (s) {
+              s.emit('removed_from_room');
+              s.leave(roomId);
+            }
+            delete room.players[id];
+          }
+        }
+      }
+
       room.status = 'playing';
       // Assign new quote
       room.quoteIndex = Math.floor(Math.random() * 100);
-      
+
       // Reset all players
       Object.values(room.players).forEach(p => {
         p.progress = 0;
         p.wpm = 0;
         p.finished = false;
         p.accuracy = undefined;
+        p.rematch = false;
       });
-      
+
       // Shared countdown anchor: everyone counts down to the same wall-clock
       // moment instead of each client running its own independent 10s timer.
       const startAt = Date.now() + 10000;
@@ -194,24 +210,48 @@ io.on('connection', (socket) => {
       if (allFinished) {
         room.status = 'finished';
       }
-      
+
       updateRoom(roomId);
     }
   });
 
+  // Timed out (20-WPM clock). Mark finished but KEEP current progress so the
+  // player's car stays where it stopped instead of jumping to the finish line.
+  socket.on('force_stop', ({ roomId, wpm, accuracy }) => {
+    const room = rooms.get(roomId);
+    if (room && room.players[socket.id]) {
+      room.players[socket.id].wpm = wpm;
+      room.players[socket.id].accuracy = accuracy;
+      room.players[socket.id].finished = true;
+
+      const allFinished = Object.values(room.players).every(p => p.finished);
+      if (allFinished) {
+        room.status = 'finished';
+      }
+
+      updateRoom(roomId);
+    }
+  });
+
+  // A player opts into the next match. Only valid once the match is fully over.
+  // Players who never opt in are dropped when the host starts (see host_start).
   socket.on('play_again', (roomId) => {
     const room = rooms.get(roomId);
-    if (room && room.players[socket.id]?.isHost) {
-      room.status = 'waiting';
-      Object.values(room.players).forEach(p => {
-        p.progress = 0;
-        p.wpm = 0;
-        p.finished = false;
-        p.accuracy = undefined;
-      });
-      updateRoom(roomId);
-      io.to(roomId).emit('play_again_initiated');
+    if (!room || !room.players[socket.id]) return;
+    if (room.status !== 'finished') return; // must wait for everyone to finish
+
+    room.players[socket.id].rematch = true;
+
+    // Ensure exactly one opted-in player is host, so START stays available even
+    // if the previous host didn't opt back in.
+    const optedIn = Object.keys(room.players).filter(id => room.players[id].rematch);
+    const hasHost = optedIn.some(id => room.players[id].isHost);
+    if (!hasHost) {
+      Object.values(room.players).forEach(p => { p.isHost = false; });
+      room.players[socket.id].isHost = true;
     }
+
+    updateRoom(roomId);
   });
 
   socket.on('leave_room', (roomId) => {

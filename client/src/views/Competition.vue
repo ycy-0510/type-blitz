@@ -30,6 +30,33 @@ const quote = computed(() => {
 const wpm = ref(0)
 const accuracy = ref(100)
 const totalKeystrokes = ref(0)
+const myProgress = ref(0) // 0-100, this player's car position
+
+// Hard time limit: the time it would take to type the whole quote at 20 WPM.
+// 20 WPM => (len/5)/20 minutes => len * 600 ms. If unfinished by then, force stop.
+const timeLimitMs = computed(() => Math.round(quote.value.text.length * 600))
+const deadlineAt = ref(0)
+const timeLeftMs = ref(0)
+const timeLeftLabel = computed(() => {
+  const total = Math.max(Math.ceil(timeLeftMs.value / 1000), 0)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+})
+
+// Cars on screen: in single-player it's just you; in multiplayer the top players.
+const raceRows = computed(() => {
+  if (store.isSinglePlayer) {
+    return [{ id: 'me', nickname: store.nickname || 'You', progress: myProgress.value, wpm: wpm.value, isMe: true }]
+  }
+  return topPlayers.value.map(p => ({
+    id: p.id,
+    nickname: p.nickname,
+    progress: p.progress,
+    wpm: p.wpm,
+    isMe: p.id === store.myId,
+  }))
+})
 
 const topPlayers = computed(() => {
   if (store.isSinglePlayer) return []
@@ -84,10 +111,25 @@ const restartSingle = () => {
   wpm.value = 0
   accuracy.value = 100
   totalKeystrokes.value = 0
+  myProgress.value = 0
+  deadlineAt.value = 0
   startTime.value = null
   isGameActive.value = false
   roomStatus.value = 'playing'
   startCountdown(Date.now() + COUNTDOWN_MS)
+}
+
+const onRoomUpdate = (room: { status: string }) => {
+  if (room.status === 'finished') {
+    roomStatus.value = 'finished'
+  }
+}
+
+// The host started a new match without us opting into PLAY AGAIN — we've been
+// removed from the group, so go back to the lobby.
+const onRemoved = () => {
+  store.reset(true)
+  router.push('/')
 }
 
 onMounted(() => {
@@ -100,59 +142,73 @@ onMounted(() => {
   const startAt = store.room && store.matchStartAt ? store.matchStartAt : Date.now() + COUNTDOWN_MS
   startCountdown(startAt)
 
-  socket.on('room_update', (room) => {
-    if (room.status === 'finished') {
-      roomStatus.value = 'finished'
-    }
-  })
+  socket.on('room_update', onRoomUpdate)
+  socket.on('removed_from_room', onRemoved)
 })
 
 onUnmounted(() => {
   cancelAnimationFrame(countdownRaf)
   clearInterval(timerInterval.value)
-  socket.off('room_update')
+  // Remove ONLY this component's listener — passing no handler would also wipe
+  // the global store.room sync registered in store.ts.
+  socket.off('room_update', onRoomUpdate)
+  socket.off('removed_from_room', onRemoved)
 })
 
 const startGame = () => {
   isGameActive.value = true
   startTime.value = Date.now()
+  deadlineAt.value = Date.now() + timeLimitMs.value
+  timeLeftMs.value = timeLimitMs.value
   timerInterval.value = setInterval(updateStats, 200)
 }
 
 const updateStats = () => {
-  // Stats update logic handled via TypingArea events mostly,
-  // but time affects WPM so we recalc here if needed
+  if (!deadlineAt.value) return
+  timeLeftMs.value = Math.max(deadlineAt.value - Date.now(), 0)
+  if (timeLeftMs.value <= 0) {
+    // Ran out the 20-WPM clock without finishing — force stop, car stays put.
+    endGame(true)
+  }
 }
 
 const handleProgress = ({ correctCount }: { correctCount: number }) => {
   if (!startTime.value) return
-  
+
   totalKeystrokes.value++
-  
+
   const elapsed = (Date.now() - startTime.value) / 60000 // minutes
   const safeTime = Math.max(elapsed, 0.01)
-  
+
   wpm.value = Math.round((correctCount / 5) / safeTime)
   accuracy.value = Math.round((correctCount / totalKeystrokes.value) * 100)
-  
+
   const progressPercent = (correctCount / quote.value.text.length) * 100
-  
+  myProgress.value = Math.min(progressPercent, 100)
+
   if (!store.isSinglePlayer && socket.connected) {
     socket.emit('progress', { roomId: store.roomId, progress: progressPercent, wpm: wpm.value })
   }
 }
 
-const handleFinish = () => {
+const endGame = (forced: boolean) => {
+  if (!isGameActive.value) return // already stopped (e.g. timeout + finish race)
   isGameActive.value = false
   clearInterval(timerInterval.value)
-  if (store.isSinglePlayer) {
-    roomStatus.value = 'finished'
-  } else {
-    socket.emit('finish', { roomId: store.roomId, wpm: wpm.value, accuracy: accuracy.value })
-    // Wait for room to finish or just show our report
-    roomStatus.value = 'finished'
+  if (!store.isSinglePlayer) {
+    // 'finish' = completed the quote (car -> 100%); 'force_stop' = timed out,
+    // server keeps the car at its last position.
+    socket.emit(forced ? 'force_stop' : 'finish', {
+      roomId: store.roomId,
+      wpm: wpm.value,
+      accuracy: accuracy.value,
+    })
   }
+  roomStatus.value = 'finished'
 }
+
+// Natural completion (TypingArea emitted 'finish').
+const handleFinish = () => endGame(false)
 </script>
 
 <template>
@@ -174,16 +230,23 @@ const handleFinish = () => {
         <div><span class="opacity-50">WPM:</span> <span class="font-bold text-white">{{ wpm }}</span></div>
         <div><span class="opacity-50">ACC:</span> <span class="font-bold text-white">{{ accuracy }}%</span></div>
       </div>
+      <!-- Time remaining (20-WPM deadline) -->
+      <div v-if="isGameActive" class="flex items-center gap-2">
+        <span class="opacity-50 text-sm">TIME</span>
+        <span class="font-mono font-bold text-2xl tabular-nums" :class="timeLeftMs <= 10000 ? 'text-[#f92672] animate-pulse' : 'text-white'">
+          {{ timeLeftLabel }}
+        </span>
+      </div>
     </header>
 
-    <!-- Multiplayer Progress Tracks -->
-    <div v-if="!store.isSinglePlayer" class="w-full max-w-4xl px-8 flex flex-col gap-4 mb-8">
-      <div v-for="(p, index) in topPlayers" :key="p.id" class="flex items-center gap-4">
-        <span class="text-xs w-20 font-bold tracking-wider text-right truncate" :class="p.id === store.myId ? 'text-[#a6e22e]' : 'text-gray-400'">
+    <!-- Progress Tracks (cars) — shown in both single-player and multiplayer -->
+    <div class="w-full max-w-4xl px-8 flex flex-col gap-4 mb-8">
+      <div v-for="(p, index) in raceRows" :key="p.id" class="flex items-center gap-4">
+        <span class="text-xs w-20 font-bold tracking-wider text-right truncate" :class="p.isMe ? 'text-[#a6e22e]' : 'text-gray-400'">
           {{ index + 1 }}. {{ p.nickname }}
         </span>
         <div class="relative flex-1 h-8 border-b-2 border-gray-700">
-          <div class="absolute top-0 transition-all duration-300 transform -translate-y-1" :style="{ left: Math.min(p.progress, 100) + '%' }" :class="p.id === store.myId ? 'text-[#a6e22e]' : 'text-gray-400'">
+          <div class="absolute top-0 transition-all duration-300 transform -translate-y-1" :style="{ left: Math.min(p.progress, 100) + '%' }" :class="p.isMe ? 'text-[#a6e22e]' : 'text-gray-400'">
             <svg viewBox="0 0 20 10" width="40" height="20" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
               <path d="M 4 2 H 12 V 4 H 16 V 5 H 18 V 8 H 2 V 5 H 4 Z" fill="currentColor" />
               <path d="M 5 3 H 8 V 4 H 5 Z" fill="#fff" opacity="0.8" />

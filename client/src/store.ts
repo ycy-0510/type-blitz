@@ -10,6 +10,7 @@ interface Player {
   isHost: boolean
   finished: boolean
   accuracy?: number
+  rematch?: boolean
 }
 
 interface RoomState {
@@ -114,6 +115,10 @@ socket.on('connect', () => {
 
 socket.on('room_update', (roomState: RoomState) => {
   store.room = roomState
+  // Keep host flag in sync with the server (host can be reassigned on rematch
+  // or when the previous host leaves).
+  const me = store.myId ? roomState.players[store.myId] : undefined
+  if (me) store.isHost = me.isHost
 })
 
 socket.on('room_error', (msg: string) => {

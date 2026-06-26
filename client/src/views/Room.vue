@@ -20,6 +20,12 @@ const joinError = ref('')
 const inviteLink = ref(`${window.location.origin}/room/${roomId}`)
 const copied = ref(false)
 
+const onMatchStarting = (payload?: { startAt?: number }) => {
+  // Shared countdown anchor from the server so every client hits GO together.
+  store.matchStartAt = payload?.startAt ?? (Date.now() + 10000)
+  router.push('/play')
+}
+
 onMounted(() => {
   if (store.roomId === roomId && store.nickname) {
     // Already in room (created by this host)
@@ -29,15 +35,11 @@ onMounted(() => {
     requireNickname.value = true
   }
 
-  socket.on('match_starting', (payload?: { startAt?: number }) => {
-    // Shared countdown anchor from the server so every client hits GO together.
-    store.matchStartAt = payload?.startAt ?? (Date.now() + 10000)
-    router.push('/play')
-  })
+  socket.on('match_starting', onMatchStarting)
 })
 
 onUnmounted(() => {
-  socket.off('match_starting')
+  socket.off('match_starting', onMatchStarting)
 })
 
 const joinRoom = async () => {
@@ -98,7 +100,11 @@ const startMatch = () => {
 
 const playersList = computed(() => {
   if (!store.room) return []
-  return Object.values(store.room.players)
+  const all = Object.values(store.room.players)
+  // In the rematch lobby (previous match finished) only show those who opted in
+  // via PLAY AGAIN; everyone else is considered to have left the group.
+  if (store.room.status === 'finished') return all.filter(p => p.rematch)
+  return all
 })
 
 const canStart = computed(() => {

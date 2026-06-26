@@ -68,17 +68,20 @@ const ranking = computed(() => {
   return myIndex !== -1 ? myIndex + 1 : null
 })
 
+// Multiplayer: PLAY AGAIN is only allowed once the whole match is over
+// (server flips status to 'finished' when every player has finished/timed out).
+const canRematch = computed(() => store.isSinglePlayer || store.room?.status === 'finished')
+
 const handlePlayAgain = () => {
   if (store.isSinglePlayer) {
     // Restart in place (same /play route) with a fresh quote.
     emit('again')
-  } else {
-    // Only host can trigger server play_again, but we navigate ourselves to the room anyway
-    if (store.isHost) {
-      socket.emit('play_again', store.roomId)
-    }
-    router.push(`/room/${store.roomId}`)
+    return
   }
+  if (!canRematch.value) return
+  // Opt into the next match and head back to the (now rematch-only) room.
+  socket.emit('play_again', store.roomId)
+  router.push(`/room/${store.roomId}`)
 }
 
 const handleLeave = () => {
@@ -114,14 +117,15 @@ const handleLeave = () => {
       </div>
 
       <div class="w-full flex flex-col gap-3" v-if="showButtons">
-        <button 
+        <button
           @click="handlePlayAgain"
-          class="w-full bg-[#f92672] text-white font-bold py-3 rounded hover:opacity-80 transition"
+          :disabled="!canRematch"
+          class="w-full bg-[#f92672] text-white font-bold py-3 rounded hover:opacity-80 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ store.isSinglePlayer ? 'PLAY AGAIN' : 'RETURN TO ROOM' }}
+          {{ canRematch ? 'PLAY AGAIN' : 'WAITING FOR PLAYERS…' }}
         </button>
 
-        <button 
+        <button
           @click="handleLeave"
           class="w-full border border-gray-600 text-gray-400 font-bold py-3 rounded hover:bg-gray-800 hover:text-white transition"
         >
