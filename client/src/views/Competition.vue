@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, socket } from '../store'
 import { quotes } from '../quotes'
-import { playBeep, playHappyBirthday } from '../sound'
+import { playBeep, playHappyBirthday, playFinish } from '../sound'
 import TypingArea from '../components/TypingArea.vue'
 import Report from './Report.vue'
 import Celebration from '../components/Celebration.vue'
@@ -218,13 +218,16 @@ const endGame = (forced: boolean) => {
   roomStatus.value = 'finished'
 }
 
-// Natural completion (TypingArea emitted 'finish') — the car reached the line.
+// Natural completion (TypingArea emitted 'finish') — the car crossed the line.
 const handleFinish = () => {
   endGame(false)
-  // Special edition: only when finishing the custom quote, throw the party.
+  // Special edition: the custom quote keeps its birthday + confetti; every
+  // other finish gets the racing finish-line fanfare.
   if (isCustomQuote.value) {
     showCelebration.value = true
     playHappyBirthday()
+  } else {
+    playFinish()
   }
 }
 </script>
