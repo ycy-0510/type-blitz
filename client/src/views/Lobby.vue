@@ -83,7 +83,15 @@ const closeModal = () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex items-center justify-center p-4 relative">
+  <div class="h-full w-full flex flex-col items-center justify-center gap-10 p-4 relative">
+    <!-- Brand -->
+    <div class="flex items-center gap-4 select-none">
+      <img src="/favicon.svg" alt="TypeBlitz logo" class="w-14 h-14 md:w-16 md:h-16 drop-shadow-[0_0_14px_rgba(166,226,46,0.3)]" />
+      <h1 class="text-4xl md:text-5xl font-black tracking-tight">
+        <span class="text-[#a6e22e]">Type</span><span class="text-[#f92672]">Blitz</span>
+      </h1>
+    </div>
+
     <div class="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
       <!-- Single Player Card -->
       <div 
