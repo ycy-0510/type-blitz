@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Brand wordmark font (used only for the TypeBlitz logo text). */
+@font-face {
+  font-family: 'Quantico';
+  src: url('./assets/Quantico-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
     --bg-color: #272822;
     --text-untyped: #75715e;
