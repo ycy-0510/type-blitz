@@ -51,7 +51,7 @@ const timeLeftLabel = computed(() => {
 // Car colours assigned by room join order (mod 4): red, blue, green, yellow.
 const CAR_COLORS = ['#ef4444', '#3b82f6', '#a6e22e', '#facc15']
 const playerColor = (id: string) => {
-  if (!store.room) return CAR_COLORS[2]
+  if (!store.room) return CAR_COLORS[0]
   const idx = Object.keys(store.room.players).indexOf(id)
   return CAR_COLORS[(idx < 0 ? 0 : idx) % 4]
 }
@@ -69,7 +69,7 @@ const carHeight = computed(() => Math.round(40 * carScale.value))
 // Cars on screen: in single-player it's just you; in multiplayer the top players.
 const raceRows = computed(() => {
   if (store.isSinglePlayer) {
-    return [{ id: 'me', nickname: store.nickname || 'You', progress: myProgress.value, wpm: wpm.value, isMe: true, color: '#a6e22e' }]
+    return [{ id: 'me', nickname: store.nickname || 'You', progress: myProgress.value, wpm: wpm.value, isMe: true, color: CAR_COLORS[0] }]
   }
   return topPlayers.value.map(p => ({
     id: p.id,
