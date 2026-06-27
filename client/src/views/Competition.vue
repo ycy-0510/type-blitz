@@ -15,6 +15,10 @@ const countdown = ref(0)
 let countdownRaf = 0
 const roomStatus = ref<'playing' | 'finished'>('playing')
 const isGameActive = ref(false)
+// Whether the player is actively focused on the game. Losing window focus
+// "unfocuses" the game (and, in solo, pauses the clock); a click resumes.
+const focused = ref(true)
+let pausedAt = 0
 
 const startTime = ref<number | null>(null)
 const timerInterval = ref<any>(null)
@@ -55,10 +59,28 @@ const timeLeftLabel = computed(() => {
   return `${m}:${String(s).padStart(2, '0')}`
 })
 
+// Car colours assigned by room join order (mod 4): red, blue, green, yellow.
+const CAR_COLORS = ['#ef4444', '#3b82f6', '#a6e22e', '#facc15']
+const playerColor = (id: string) => {
+  if (!store.room) return CAR_COLORS[2]
+  const idx = Object.keys(store.room.players).indexOf(id)
+  return CAR_COLORS[(idx < 0 ? 0 : idx) % 4]
+}
+
+// Cars are full size in solo. In multiplayer they shrink as the room fills
+// (more players -> smaller), capping at the solo size for small rooms.
+const carScale = computed(() => {
+  if (store.isSinglePlayer || !store.room) return 1
+  const n = Object.keys(store.room.players).length
+  return Math.max(0.5, Math.min(1, 1 - (n - 2) * 0.015))
+})
+const carWidth = computed(() => Math.round(80 * carScale.value))
+const carHeight = computed(() => Math.round(40 * carScale.value))
+
 // Cars on screen: in single-player it's just you; in multiplayer the top players.
 const raceRows = computed(() => {
   if (store.isSinglePlayer) {
-    return [{ id: 'me', nickname: store.nickname || 'You', progress: myProgress.value, wpm: wpm.value, isMe: true }]
+    return [{ id: 'me', nickname: store.nickname || 'You', progress: myProgress.value, wpm: wpm.value, isMe: true, color: '#a6e22e' }]
   }
   return topPlayers.value.map(p => ({
     id: p.id,
@@ -66,6 +88,7 @@ const raceRows = computed(() => {
     progress: p.progress,
     wpm: p.wpm,
     isMe: p.id === store.myId,
+    color: playerColor(p.id),
   }))
 })
 
@@ -124,10 +147,11 @@ const restartSingle = () => {
   totalKeystrokes.value = 0
   myProgress.value = 0
   deadlineAt.value = 0
+  timeLeftMs.value = 0
   startTime.value = null
-  isGameActive.value = false
   roomStatus.value = 'playing'
-  startCountdown(Date.now() + COUNTDOWN_MS)
+  // Solo: restart immediately (no countdown); clock starts on first keystroke.
+  startGame()
 }
 
 const onRoomUpdate = (room: { status: string }) => {
@@ -149,12 +173,20 @@ onMounted(() => {
     return
   }
 
-  // Multiplayer uses the server's shared anchor; single-player counts locally.
-  const startAt = store.room && store.matchStartAt ? store.matchStartAt : Date.now() + COUNTDOWN_MS
-  startCountdown(startAt)
+  if (store.isSinglePlayer) {
+    // No traffic light: typing is active right away; clock starts on first key.
+    startGame()
+  } else {
+    // Multiplayer uses the server's shared countdown anchor.
+    const startAt = store.matchStartAt ? store.matchStartAt : Date.now() + COUNTDOWN_MS
+    startCountdown(startAt)
+  }
 
   socket.on('room_update', onRoomUpdate)
   socket.on('removed_from_room', onRemoved)
+
+  window.addEventListener('blur', onBlur)
+  document.addEventListener('visibilitychange', onVisibility)
 })
 
 onUnmounted(() => {
@@ -164,10 +196,20 @@ onUnmounted(() => {
   // the global store.room sync registered in store.ts.
   socket.off('room_update', onRoomUpdate)
   socket.off('removed_from_room', onRemoved)
+
+  window.removeEventListener('blur', onBlur)
+  document.removeEventListener('visibilitychange', onVisibility)
 })
 
 const startGame = () => {
   isGameActive.value = true
+  // Multiplayer starts the clock at the shared GO. Solo has no traffic light —
+  // the clock starts on the first keystroke instead (see handleProgress).
+  if (!store.isSinglePlayer) startClock()
+}
+
+const startClock = () => {
+  if (startTime.value) return
   startTime.value = Date.now()
   deadlineAt.value = Date.now() + timeLimitMs.value
   timeLeftMs.value = timeLimitMs.value
@@ -183,12 +225,42 @@ const updateStats = () => {
   }
 }
 
+// Losing window focus unfocuses the game. In solo we also pause the clock by
+// freezing the timer; the multiplayer race can't pause, so its clock keeps
+// running (only typing is blocked until the player clicks back).
+const onBlur = () => {
+  if (!isGameActive.value || !focused.value) return
+  focused.value = false
+  if (store.isSinglePlayer && startTime.value) {
+    pausedAt = Date.now()
+    clearInterval(timerInterval.value)
+  }
+}
+
+const onVisibility = () => { if (document.hidden) onBlur() }
+
+// Clicking the focus overlay resumes. In solo, shift the clock forward by the
+// paused duration so elapsed time and the deadline are preserved.
+const resumeFocus = () => {
+  if (focused.value) return
+  if (store.isSinglePlayer && pausedAt && startTime.value) {
+    const delta = Date.now() - pausedAt
+    startTime.value += delta
+    deadlineAt.value += delta
+    timerInterval.value = setInterval(updateStats, 200)
+  }
+  pausedAt = 0
+  focused.value = true
+}
+
 const handleProgress = ({ correctCount }: { correctCount: number }) => {
-  if (!startTime.value) return
+  if (!isGameActive.value) return
+  // Solo: begin timing on the first keystroke (no countdown).
+  if (!startTime.value) startClock()
 
   totalKeystrokes.value++
 
-  const elapsed = (Date.now() - startTime.value) / 60000 // minutes
+  const elapsed = (Date.now() - (startTime.value ?? Date.now())) / 60000 // minutes
   const safeTime = Math.max(elapsed, 0.01)
 
   wpm.value = Math.round((correctCount / 5) / safeTime)
@@ -254,8 +326,8 @@ const handleFinish = () => {
         <div><span class="opacity-50">WPM:</span> <span class="font-bold text-white">{{ wpm }}</span></div>
         <div><span class="opacity-50">ACC:</span> <span class="font-bold text-white">{{ accuracy }}%</span></div>
       </div>
-      <!-- Time remaining (20-WPM deadline) -->
-      <div v-if="isGameActive" class="flex items-center gap-2">
+      <!-- Time remaining — only once the clock is running (solo: after first key) -->
+      <div v-if="startTime" class="flex items-center gap-2">
         <span class="opacity-50 text-sm">TIME</span>
         <span class="font-mono font-bold text-2xl tabular-nums" :class="timeLeftMs <= 10000 ? 'text-[#f92672] animate-pulse' : 'text-white'">
           {{ timeLeftLabel }}
@@ -264,14 +336,14 @@ const handleFinish = () => {
     </header>
 
     <!-- Progress Tracks (cars) — shown in both single-player and multiplayer -->
-    <div class="w-full max-w-4xl px-8 flex flex-col gap-4 mb-8">
+    <div class="w-full max-w-4xl px-8 flex flex-col gap-6 mb-8">
       <div v-for="(p, index) in raceRows" :key="p.id" class="flex items-center gap-4">
-        <span class="text-xs w-20 font-bold tracking-wider text-right truncate" :class="p.isMe ? 'text-[#a6e22e]' : 'text-gray-400'">
+        <span class="text-xs w-20 font-bold tracking-wider text-right truncate" :style="{ color: p.color }">
           {{ index + 1 }}. {{ p.nickname }}
         </span>
-        <div class="relative flex-1 h-8 border-b-2 border-gray-700">
-          <div class="absolute top-0 transition-all duration-300 transform -translate-y-1" :style="{ left: Math.min(p.progress, 100) + '%' }" :class="p.isMe ? 'text-[#a6e22e]' : 'text-gray-400'">
-            <svg viewBox="0 0 20 10" width="40" height="20" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <div class="relative flex-1 h-10 border-b-2 border-gray-700">
+          <div class="absolute bottom-0 transition-all duration-300" :style="{ left: Math.min(p.progress, 100) + '%', color: p.color }">
+            <svg viewBox="0 0 20 10" :width="carWidth" :height="carHeight" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
               <path d="M 4 2 H 12 V 4 H 16 V 5 H 18 V 8 H 2 V 5 H 4 Z" fill="currentColor" />
               <path d="M 5 3 H 8 V 4 H 5 Z" fill="#fff" opacity="0.8" />
               <path d="M 9 3 H 11 V 4 H 9 Z" fill="#fff" opacity="0.8" />
@@ -295,13 +367,26 @@ const handleFinish = () => {
       <template v-else-if="quote">
         <TypingArea
           :quote="quote.text"
-          :isActive="isGameActive"
+          :isActive="isGameActive && focused"
           @progress="handleProgress"
           @finish="handleFinish"
         />
 
         <div class="text-right text-gray-500 italic text-sm mt-4">
           — {{ quote.source }}
+        </div>
+
+        <!-- Click-to-focus overlay: shown when the game lost focus. In solo the
+             clock is paused; clicking anywhere here resumes. -->
+        <div
+          v-if="isGameActive && !focused"
+          @click="resumeFocus"
+          class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-[#272822]/85 backdrop-blur-sm cursor-pointer rounded-lg select-none"
+        >
+          <div class="text-[#a6e22e] text-3xl font-bold animate-pulse">⏸ Click to focus</div>
+          <div class="text-gray-400 text-sm">
+            {{ store.isSinglePlayer ? 'Timer paused — click and keep typing' : 'Click to resume typing' }}
+          </div>
         </div>
       </template>
     </main>
