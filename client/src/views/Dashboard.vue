@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { store } from '../store'
 import { metricStats, dayStreak, wpmGrowth } from '../stats'
 import Gauge from '../components/Gauge.vue'
+import MatchHistory from '../components/MatchHistory.vue'
 
 defineEmits<{ (e: 'start'): void }>()
 
@@ -148,5 +149,8 @@ function trend(pct: number | null) {
         </div>
       </div>
     </div>
+
+    <!-- Match history (floating button + modal) -->
+    <MatchHistory />
   </div>
 </template>
