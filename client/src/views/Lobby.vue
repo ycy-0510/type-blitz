@@ -83,7 +83,10 @@ const closeModal = () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col items-center justify-center gap-10 p-4 relative">
+  <div class="h-full w-full overflow-y-auto relative">
+    <!-- min-h-full centers the content when it fits, but lets it grow and
+         scroll on short screens (e.g. mobile) instead of being clipped. -->
+    <div class="min-h-full flex flex-col items-center justify-center gap-10 p-4">
     <!-- Brand -->
     <div class="flex items-center gap-4 select-none">
       <img src="/favicon.svg" alt="TypeBlitz logo" class="w-14 h-14 md:w-16 md:h-16 drop-shadow-[0_0_14px_rgba(166,226,46,0.3)]" />
@@ -117,18 +120,19 @@ const closeModal = () => {
         <p class="mt-4 text-gray-400 text-center">Create a group (2-40 players) and race with friends.</p>
       </div>
     </div>
+    </div>
 
     <!-- Records Button -->
-    <button 
+    <button
       @click="showRecords = true"
       title="Match History"
-      class="absolute bottom-8 right-8 bg-[#66d9ef] text-black font-bold p-4 rounded-full shadow-[0_0_20px_rgba(102,217,239,0.3)] hover:scale-110 hover:shadow-[0_0_30px_rgba(102,217,239,0.6)] transition-all z-10"
+      class="fixed bottom-8 right-8 bg-[#66d9ef] text-black font-bold p-4 rounded-full shadow-[0_0_20px_rgba(102,217,239,0.3)] hover:scale-110 hover:shadow-[0_0_30px_rgba(102,217,239,0.6)] transition-all z-10"
     >
       <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
     </button>
 
     <!-- Records Modal -->
-    <div v-if="showRecords" class="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <div v-if="showRecords" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
       <div class="bg-[#1e1e1e] p-8 rounded-xl border border-gray-700 w-full max-w-3xl h-[80vh] flex flex-col shadow-2xl relative" @click.stop>
         <button @click="showRecords = false" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button>
         <h3 class="text-2xl font-bold mb-6 text-[#66d9ef] tracking-widest border-b border-gray-700 pb-4">MATCH HISTORY</h3>
@@ -171,7 +175,7 @@ const closeModal = () => {
     </div>
 
     <!-- Nickname Modal -->
-    <div v-if="showModal" class="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <div v-if="showModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
       <div class="bg-[#1e1e1e] p-8 rounded-xl border border-gray-700 w-full max-w-md shadow-2xl relative" @click.stop>
         <button @click="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button>
         <h3 class="text-2xl font-bold mb-6 text-center text-[#f8f8f2]">ENTER NICKNAME</h3>
