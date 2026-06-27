@@ -42,7 +42,14 @@ export interface MatchRecord {
 const loadHistory = (): MatchRecord[] => {
   try {
     const data = localStorage.getItem('typeblitz_history')
-    return data ? JSON.parse(data) : []
+    const all: MatchRecord[] = data ? JSON.parse(data) : []
+    // Drop 0-WPM results (no real attempt) and re-persist the cleaned list so
+    // any previously-saved 0-WPM records are removed automatically.
+    const cleaned = all.filter((r) => (r.wpm ?? 0) > 0)
+    if (cleaned.length !== all.length) {
+      localStorage.setItem('typeblitz_history', JSON.stringify(cleaned))
+    }
+    return cleaned
   } catch {
     return []
   }
@@ -64,6 +71,8 @@ export const store = reactive({
   },
 
   saveRecord(record: Omit<MatchRecord, 'id' | 'date'>) {
+    // Skip 0-WPM results — a timed-out run with nothing typed isn't meaningful.
+    if (!record.wpm || record.wpm <= 0) return
     const newRecord: MatchRecord = {
       ...record,
       id: Math.random().toString(36).substring(2, 9),
