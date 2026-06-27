@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, socket } from '../store'
 import { quotes } from '../quotes'
-import { playBeep } from '../sound'
+import { playBeep, playFinish } from '../sound'
 import TypingArea from '../components/TypingArea.vue'
 import Report from './Report.vue'
 
@@ -207,8 +207,11 @@ const endGame = (forced: boolean) => {
   roomStatus.value = 'finished'
 }
 
-// Natural completion (TypingArea emitted 'finish').
-const handleFinish = () => endGame(false)
+// Natural completion (TypingArea emitted 'finish') — the car crossed the line.
+const handleFinish = () => {
+  endGame(false)
+  playFinish()
+}
 </script>
 
 <template>

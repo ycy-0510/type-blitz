@@ -51,6 +51,49 @@ export const playSound = (type: 'click' | 'error') => {
   }
 }
 
+// Finish-line fanfare: an engine zoom past the line + a short two-note horn.
+// Played whenever a player's car reaches the finish.
+export const playFinish = () => {
+  const ctx = getCtx()
+  if (!ctx) return
+
+  const now = ctx.currentTime
+
+  // Engine "zoom" — a sawtooth pitch sweep through a brightening lowpass.
+  const eng = ctx.createOscillator()
+  const eg = ctx.createGain()
+  const ef = ctx.createBiquadFilter()
+  eng.type = 'sawtooth'
+  ef.type = 'lowpass'
+  eng.frequency.setValueAtTime(160, now)
+  eng.frequency.exponentialRampToValueAtTime(900, now + 0.45)
+  ef.frequency.setValueAtTime(800, now)
+  ef.frequency.exponentialRampToValueAtTime(3000, now + 0.45)
+  eg.gain.setValueAtTime(0.0001, now)
+  eg.gain.exponentialRampToValueAtTime(0.25, now + 0.05)
+  eg.gain.exponentialRampToValueAtTime(0.0001, now + 0.55)
+  eng.connect(ef)
+  ef.connect(eg)
+  eg.connect(ctx.destination)
+  eng.start(now)
+  eng.stop(now + 0.6)
+
+  // Victory horn — two bright notes (a rising fifth, G5 -> D6).
+  for (const [freq, at] of [[784, 0.42], [1175, 0.6]] as const) {
+    const o = ctx.createOscillator()
+    const g = ctx.createGain()
+    o.type = 'square'
+    o.frequency.setValueAtTime(freq, now + at)
+    g.gain.setValueAtTime(0.0001, now + at)
+    g.gain.exponentialRampToValueAtTime(0.3, now + at + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.3)
+    o.connect(g)
+    g.connect(ctx.destination)
+    o.start(now + at)
+    o.stop(now + at + 0.32)
+  }
+}
+
 // Racing-style countdown beep. Short high "beep" for ticks, longer for GO.
 export const playBeep = (type: 'tick' | 'go') => {
   const ctx = getCtx()
