@@ -52,6 +52,26 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3001;
 
+// Number of quotes the client bundles (src/quotes.ts). Used to pick a valid
+// random index. Override with QUOTE_COUNT if the quote list size changes.
+const QUOTE_COUNT = parseInt(process.env.QUOTE_COUNT || '97', 10);
+function randomQuoteIndex() {
+  return Math.floor(Math.random() * QUOTE_COUNT);
+}
+
+// --- Special version: optional custom quote ---
+// If CUSTOM_QUOTE is set, it is used as the FIRST multiplayer match in each room
+// (quoteIndex = -1, text shipped to clients via room.customQuote). Subsequent
+// matches fall back to the normal random pool.
+const CUSTOM_QUOTE_TEXT = (process.env.CUSTOM_QUOTE || '').trim();
+const CUSTOM_QUOTE_SOURCE = (process.env.CUSTOM_QUOTE_SOURCE || 'Special Edition').trim();
+const CUSTOM_QUOTE = CUSTOM_QUOTE_TEXT
+  ? { text: CUSTOM_QUOTE_TEXT, source: CUSTOM_QUOTE_SOURCE }
+  : null;
+if (CUSTOM_QUOTE) {
+  console.log(`[Special] Custom first-match quote enabled (${CUSTOM_QUOTE_TEXT.length} chars).`);
+}
+
 // Generate 16 char random ID
 function generateId() {
   return Array.from({length: 16}, () => Math.random().toString(36)[2]).join('').toUpperCase();
@@ -84,7 +104,9 @@ io.on('connection', (socket) => {
     const newRoom = {
       id: roomId,
       status: 'waiting',
-      quoteIndex: Math.floor(Math.random() * 100),
+      quoteIndex: randomQuoteIndex(),
+      // Whether this room has already consumed its one-time custom first match.
+      usedCustom: false,
       players: {
         [socket.id]: {
           id: socket.id,
@@ -164,8 +186,16 @@ io.on('connection', (socket) => {
       }
 
       room.status = 'playing';
-      // Assign new quote
-      room.quoteIndex = Math.floor(Math.random() * 100);
+      // First match in this room uses the special custom quote (if configured);
+      // every match after that returns to the normal random pool.
+      if (CUSTOM_QUOTE && !room.usedCustom) {
+        room.quoteIndex = -1;
+        room.customQuote = CUSTOM_QUOTE;
+        room.usedCustom = true;
+      } else {
+        room.quoteIndex = randomQuoteIndex();
+        room.customQuote = undefined;
+      }
 
       // Reset all players
       Object.values(room.players).forEach(p => {

@@ -3,9 +3,10 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, socket } from '../store'
 import { quotes } from '../quotes'
-import { playBeep } from '../sound'
+import { playBeep, playHappyBirthday } from '../sound'
 import TypingArea from '../components/TypingArea.vue'
 import Report from './Report.vue'
+import Celebration from '../components/Celebration.vue'
 
 const router = useRouter()
 
@@ -22,10 +23,18 @@ const timerInterval = ref<any>(null)
 // unrelated re-renders, and can be deliberately re-rolled on "play again".
 const singleQuoteIndex = ref(Math.floor(Math.random() * quotes.length))
 const quote = computed(() => {
-  if (store.room) return quotes[store.room.quoteIndex]
+  if (store.room) {
+    // -1 = the special custom quote, shipped inline by the server.
+    if (store.room.quoteIndex === -1 && store.room.customQuote) return store.room.customQuote
+    return quotes[store.room.quoteIndex]
+  }
   if (store.isSinglePlayer) return quotes[singleQuoteIndex.value]
   return quotes[0]
 })
+
+// True when this match is running the special-edition custom quote.
+const isCustomQuote = computed(() => !!store.room && store.room.quoteIndex === -1 && !!store.room.customQuote)
+const showCelebration = ref(false)
 
 const wpm = ref(0)
 const accuracy = ref(100)
@@ -207,13 +216,23 @@ const endGame = (forced: boolean) => {
   roomStatus.value = 'finished'
 }
 
-// Natural completion (TypingArea emitted 'finish').
-const handleFinish = () => endGame(false)
+// Natural completion (TypingArea emitted 'finish') — the car reached the line.
+const handleFinish = () => {
+  endGame(false)
+  // Special edition: only when finishing the custom quote, throw the party.
+  if (isCustomQuote.value) {
+    showCelebration.value = true
+    playHappyBirthday()
+  }
+}
 </script>
 
 <template>
   <div class="h-full w-full flex flex-col items-center py-8 relative">
-    
+
+    <!-- Special edition: confetti + balloons when the car reaches the finish -->
+    <Celebration :active="showCelebration" />
+
     <!-- Countdown Traffic Light -->
     <div v-if="countdown > 0" class="absolute top-24 left-1/2 transform -translate-x-1/2 z-40 flex flex-col items-center gap-4 bg-[#1e1e1e] border-2 border-gray-700 p-6 rounded-2xl shadow-2xl">
       <div class="flex gap-4 mb-2 bg-black p-4 rounded-xl border border-gray-800">

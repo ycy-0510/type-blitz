@@ -17,7 +17,9 @@ interface RoomState {
   id: string
   players: Record<string, Player>
   status: 'waiting' | 'playing' | 'finished'
+  // -1 = the special custom quote (special-version); otherwise an index into quotes.
   quoteIndex: number
+  customQuote?: { text: string; source: string }
 }
 
 // Connect same-origin: Socket.IO talks to /socket.io on whatever host serves

@@ -1,13 +1,13 @@
 version: '3.8'
 
-# Production: pull the two prebuilt images published by the GitHub Action
-# (ghcr.io/ycy-0510/typeblitz-*) instead of building locally.
+# Production (special edition): pull the prebuilt images the GitHub Action
+# publishes from the special-version branch (the ":special" tag).
 #
 # Topology: cloudflared -> client (nginx :80) -> /socket.io/ proxied to server:3001.
 # Everything is one origin, so only the client needs to be exposed.
 #
 # Usage:
-#   cp .env.example .env   # fill in TURNSTILE_SECRET_KEY
+#   cp .env.example .env   # fill in TURNSTILE_SECRET_KEY + CUSTOM_QUOTE
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
 #
@@ -16,16 +16,19 @@ version: '3.8'
 
 services:
   server:
-    image: ghcr.io/ycy-0510/typeblitz-server:latest
+    image: ghcr.io/ycy-0510/typeblitz-server:special
     # No published port: only the client (nginx) reaches it over the internal
     # compose network at "server:3001".
     environment:
       - PORT=3001
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+      # Special edition: custom first-match quote.
+      - CUSTOM_QUOTE=${CUSTOM_QUOTE:-}
+      - CUSTOM_QUOTE_SOURCE=${CUSTOM_QUOTE_SOURCE:-Special Edition}
     restart: unless-stopped
 
   client:
-    image: ghcr.io/ycy-0510/typeblitz-client:latest
+    image: ghcr.io/ycy-0510/typeblitz-client:special
     # Point your cloudflared tunnel at this (http://localhost:8080).
     ports:
       - "8080:80"

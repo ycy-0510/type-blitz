@@ -11,6 +11,9 @@ services:
     environment:
       - PORT=3001
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
+      # Special edition: custom first-match quote (optional).
+      - CUSTOM_QUOTE=${CUSTOM_QUOTE:-}
+      - CUSTOM_QUOTE_SOURCE=${CUSTOM_QUOTE_SOURCE:-Special Edition}
     restart: unless-stopped
 
   client:
