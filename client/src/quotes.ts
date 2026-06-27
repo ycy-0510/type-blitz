@@ -120,12 +120,6 @@ export const quotes = [
 
     },
     {
-        "text": "Next day, the third of March, soon after one o'clock, two hundred and fifty members of the English Club and fifty guests were awaiting the guest of honor and hero of the Austrian campaign, Prince Bagratión, to dinner.",
-
-        "source": "graf Leo Tolstoy, War and Peace"
-
-    },
-    {
         "text": "They went out, locking the door of the theatre behind them; and Utterson, once more leaving the servants gathered about the fire in the hall, trudged back to his office to read the two narratives in which this mystery was now to be explained.",
 
         "source": "Robert Louis Stevenson, The strange case of Dr. Jekyll and Mr. Hyde"
@@ -273,12 +267,6 @@ export const quotes = [
         "text": "It is also a Law of Nature, \"That all men that mediate Peace, be allowed safe Conduct.\" For the Law that commandeth Peace, as the End, commandeth Intercession, as the Means; and to Intercession the Means is safe Conduct.",
 
         "source": "Thomas Hobbes, Leviathan"
-
-    },
-    {
-        "text": "An hour later, when she had returned to her room, she wept. It was her first love affair, as we have said; she had given herself to this Tholomyès as to a husband, and the poor girl had a child.",
-
-        "source": "Victor Hugo, Les Misérables"
 
     },
     {
@@ -573,12 +561,6 @@ export const quotes = [
         "text": "Wishing your Lordship health in perpetuity--a continuance of your admirable reasoning faculties--good _spirits_, and an abundance of wealth--and finally a safe passage over any river not with _Sticks_, but a pleasure boat, I remain yours with the utmost profundity.",
 
         "source": "Timothy Dexter, A Pickle for the Knowing Ones"
-
-    },
-    {
-        "text": "Y, a este tiempo, habían ya llegado el cura y el barbero, viendo que los caminantes estaban en pláticas con don Quijote de la Mancha, para responder de modo que no fuese descubierto su artificio.",
-
-        "source": "Miguel de Cervantes Saavedra, Don Quijote"
 
     },
     {

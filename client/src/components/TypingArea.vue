@@ -26,12 +26,13 @@ const imeActive = ref(false)
 
 // Preprocess quote: split into words, punctuation, and spaces as separate units
 watch(() => props.quote, (newQuote) => {
-  // Normalize string
+  // Normalize string so everything is typeable on a standard English keyboard
   const normalized = newQuote
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents: é -> e, ò -> o
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
     .replace(/[—–]/g, '-')
-    
+
   // Split into units:
   //   - a word: letters/digits/apostrophes, keeping internal hyphens (e.g. "aaa-bbb", "well-being's")
   //   - whitespace runs
@@ -98,7 +99,9 @@ const handleKeydown = (e: KeyboardEvent) => {
   if (currentIndex.value < words.value.length) {
     const cur = words.value[currentIndex.value]
 
-    if (cur.typed.length < cur.original.length + 10) {
+    // Cap at the word's real length so wrong keys overwrite in place instead of
+    // appending extra characters that push the rest of the line around.
+    if (cur.typed.length < cur.original.length) {
       cur.typed += e.key
       const expectedChar = cur.original[cur.typed.length - 1]
       playSound(e.key === expectedChar ? 'click' : 'error')
@@ -185,10 +188,7 @@ onUnmounted(() => {
             'text-[#f92672] bg-[#f92672]/20': cIdx < wordObj.typed.length && wordObj.typed[cIdx] !== char,
             'text-[#75715e] opacity-50': cIdx >= wordObj.typed.length
           }"
-        ><!-- Blinking underline cursor UNDER the next character to type --><span v-if="wordObj.state === 'current' && cIdx === wordObj.typed.length" class="absolute left-0 right-0 -bottom-1 h-[3px] bg-[#f8f8f2] animate-pulse z-10"></span>{{ cIdx < wordObj.typed.length ? wordObj.typed[cIdx] : char }}</span><span
-          v-if="wordObj.typed.length > wordObj.original.length"
-          class="text-[#f92672] bg-[#f92672]/20 underline decoration-wavy relative"
-        >{{ wordObj.typed.substring(wordObj.original.length) }}</span>
+        ><!-- Blinking underline cursor UNDER the next character to type --><span v-if="wordObj.state === 'current' && cIdx === wordObj.typed.length" class="absolute left-0 right-0 -bottom-1 h-[3px] bg-[#f8f8f2] animate-pulse z-10"></span>{{ cIdx < wordObj.typed.length ? wordObj.typed[cIdx] : char }}</span>
 
         <!-- Floating Popover if Incorrect (only if it's not a whitespace) -->
         <div v-if="wordObj.state === 'incorrect' && wordObj.original.trim().length > 0" class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-[#f92672] text-white text-base px-3 py-1 rounded shadow-lg whitespace-nowrap z-50">
