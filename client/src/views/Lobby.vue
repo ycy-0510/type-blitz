@@ -122,6 +122,16 @@ const closeModal = () => {
     </div>
     </div>
 
+    <!-- Text attribution (Wikipedia, CC BY-SA 4.0) -->
+    <a
+      href="/quotes-credits.html"
+      target="_blank"
+      rel="noopener"
+      class="fixed bottom-3 left-4 text-gray-600 hover:text-gray-300 text-xs z-10"
+    >
+      Texts: Wikipedia · CC BY-SA 4.0
+    </a>
+
     <!-- Records Button -->
     <button
       @click="showRecords = true"

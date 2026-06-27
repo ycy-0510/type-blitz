@@ -52,6 +52,13 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3001;
 
+// Number of typing passages the client bundles (public/quotes.json). Used to
+// pick a valid random index. Override with QUOTE_COUNT if the list size changes.
+const QUOTE_COUNT = parseInt(process.env.QUOTE_COUNT || '3000', 10);
+function randomQuoteIndex() {
+  return Math.floor(Math.random() * QUOTE_COUNT);
+}
+
 // Generate 16 char random ID
 function generateId() {
   return Array.from({length: 16}, () => Math.random().toString(36)[2]).join('').toUpperCase();
@@ -84,7 +91,7 @@ io.on('connection', (socket) => {
     const newRoom = {
       id: roomId,
       status: 'waiting',
-      quoteIndex: Math.floor(Math.random() * 100),
+      quoteIndex: randomQuoteIndex(),
       players: {
         [socket.id]: {
           id: socket.id,
@@ -165,7 +172,7 @@ io.on('connection', (socket) => {
 
       room.status = 'playing';
       // Assign new quote
-      room.quoteIndex = Math.floor(Math.random() * 100);
+      room.quoteIndex = randomQuoteIndex();
 
       // Reset all players
       Object.values(room.players).forEach(p => {

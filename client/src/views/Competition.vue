@@ -352,7 +352,8 @@ const handleFinish = () => {
         />
 
         <div class="text-right text-gray-500 italic text-sm mt-4">
-          — {{ quote.source }}
+          <a v-if="(quote as any).url" :href="(quote as any).url" target="_blank" rel="noopener" class="hover:text-[#66d9ef] not-italic">— {{ quote.source }}</a>
+          <span v-else>— {{ quote.source }}</span>
         </div>
 
         <!-- Click-to-focus overlay: shown when the game lost focus. In solo the
