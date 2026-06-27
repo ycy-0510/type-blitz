@@ -15,19 +15,22 @@ const showPlay = ref(false)
   <PlayPanel v-if="!hasHistory" />
   <div v-else class="relative h-full w-full overflow-hidden">
     <Dashboard @start="showPlay = true" />
-    <Transition name="slide-down">
-      <PlayPanel v-if="showPlay" show-close class="absolute inset-0 z-40" @close="showPlay = false" />
+    <Transition name="slide-in">
+      <div v-if="showPlay" class="absolute inset-0 z-40">
+        <PlayPanel show-close @close="showPlay = false" />
+      </div>
     </Transition>
   </div>
 </template>
 
 <style>
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+.slide-in-enter-active,
+.slide-in-leave-active {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
-.slide-down-enter-from,
-.slide-down-leave-to {
+.slide-in-enter-from,
+.slide-in-leave-to {
   transform: translateY(-100%);
 }
 </style>
