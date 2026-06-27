@@ -87,7 +87,7 @@ const closeModal = () => {
     <!-- Brand -->
     <div class="flex items-center gap-4 select-none">
       <img src="/favicon.svg" alt="TypeBlitz logo" class="w-14 h-14 md:w-16 md:h-16 drop-shadow-[0_0_14px_rgba(166,226,46,0.3)]" />
-      <h1 class="text-4xl md:text-5xl font-black tracking-tight">
+      <h1 class="text-4xl md:text-5xl font-black tracking-tight" style="font-family: 'Quantico', sans-serif">
         <span class="text-[#a6e22e]">Type</span><span class="text-[#f92672]">Blitz</span>
       </h1>
     </div>
