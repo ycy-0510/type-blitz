@@ -4,19 +4,34 @@ import { computed } from 'vue'
 const props = defineProps<{ active: boolean }>()
 
 const COLORS = ['#f92672', '#a6e22e', '#66d9ef', '#fd971f', '#ae81ff', '#e6db74']
+const EASES = [
+  'cubic-bezier(0.3, 0.1, 0.7, 1)',
+  'cubic-bezier(0.5, 0, 0.5, 1)',
+  'cubic-bezier(0.2, 0.6, 0.4, 1)',
+  'linear',
+]
+const rand = (min: number, max: number) => min + Math.random() * (max - min)
 
-// Confetti pieces — random horizontal position, color, size, fall delay/duration.
+// Confetti pieces — fully randomized so the fall looks scattered, not uniform:
+// independent size/aspect, spin amount & direction, a mid-air sideways drift,
+// per-piece easing, and a spread of negative delays so the sky is already full.
 const confetti = computed(() =>
-  Array.from({ length: 80 }, (_, i) => {
-    const r = (n: number) => ((Math.sin(i * 99.7 + n) + 1) / 2)
+  Array.from({ length: 90 }, () => {
+    const duration = rand(2.4, 5)
+    const w = rand(5, 12)
     return {
-      left: r(1) * 100,
-      color: COLORS[i % COLORS.length],
-      size: 6 + r(2) * 8,
-      delay: r(3) * 0.6,
-      duration: 2.2 + r(4) * 1.8,
-      drift: (r(5) - 0.5) * 120,
-      round: i % 3 === 0,
+      left: rand(-5, 100),
+      color: COLORS[Math.floor(rand(0, COLORS.length))],
+      width: w,
+      height: w * rand(0.4, 1.4),        // strips and squares
+      duration,
+      delay: -rand(0, duration),          // negative => mid-fall at t=0, no wave
+      drift: rand(-160, 160),             // final horizontal offset
+      midx: rand(-90, 90),                // sideways wobble halfway down
+      rot: rand(360, 1440) * (Math.random() < 0.5 ? -1 : 1),
+      ease: EASES[Math.floor(rand(0, EASES.length))],
+      opacity: rand(0.7, 1),
+      round: Math.random() < 0.25,
     }
   })
 )
@@ -47,12 +62,16 @@ const balloons = computed(() =>
       :class="{ 'rounded-full': c.round }"
       :style="{
         left: c.left + '%',
-        width: c.size + 'px',
-        height: c.size + 'px',
+        width: c.width + 'px',
+        height: c.height + 'px',
         background: c.color,
+        opacity: c.opacity,
         animationDelay: c.delay + 's',
         animationDuration: c.duration + 's',
+        animationTimingFunction: c.ease,
         '--drift': c.drift + 'px',
+        '--midx': c.midx + 'px',
+        '--rot': c.rot + 'deg',
       }"
     ></span>
 
@@ -81,19 +100,18 @@ const balloons = computed(() =>
 .confetti {
   position: absolute;
   top: -20px;
-  opacity: 0.9;
   animation-name: confetti-fall;
-  animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
 @keyframes confetti-fall {
   0% {
     transform: translate(0, -20px) rotate(0deg);
-    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--midx), 50vh) rotate(calc(var(--rot) * 0.5));
   }
   100% {
-    transform: translate(var(--drift), 105vh) rotate(720deg);
-    opacity: 0.9;
+    transform: translate(var(--drift), 105vh) rotate(var(--rot));
   }
 }
 

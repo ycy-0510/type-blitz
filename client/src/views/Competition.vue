@@ -41,9 +41,11 @@ const accuracy = ref(100)
 const totalKeystrokes = ref(0)
 const myProgress = ref(0) // 0-100, this player's car position
 
-// Hard time limit: the time it would take to type the whole quote at 20 WPM.
-// 20 WPM => (len/5)/20 minutes => len * 600 ms. If unfinished by then, force stop.
-const timeLimitMs = computed(() => Math.round(quote.value.text.length * 600))
+// Hard time limit: the time it would take to type the whole quote at the
+// minimum pace. minWpm WPM => (len/5)/minWpm minutes => len * (12000/minWpm) ms.
+// The special custom quote is more forgiving (10 WPM); normal matches use 20.
+const minWpm = computed(() => (isCustomQuote.value ? 10 : 20))
+const timeLimitMs = computed(() => Math.round(quote.value.text.length * (12000 / minWpm.value)))
 const deadlineAt = ref(0)
 const timeLeftMs = ref(0)
 const timeLeftLabel = computed(() => {
