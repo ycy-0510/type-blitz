@@ -52,9 +52,9 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3001;
 
-// Number of quotes the client bundles (src/quotes.ts). Used to pick a valid
-// random index. Override with QUOTE_COUNT if the quote list size changes.
-const QUOTE_COUNT = parseInt(process.env.QUOTE_COUNT || '97', 10);
+// Number of typing passages in the client (public/quotes.json). Used to pick a
+// valid random index. Override with QUOTE_COUNT if the list size changes.
+const QUOTE_COUNT = parseInt(process.env.QUOTE_COUNT || '3000', 10);
 function randomQuoteIndex() {
   return Math.floor(Math.random() * QUOTE_COUNT);
 }
