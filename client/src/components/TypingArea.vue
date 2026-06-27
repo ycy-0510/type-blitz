@@ -121,16 +121,13 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
-// Index of the first character that doesn't match the original (or where the
-// typed string runs past it). -1 means everything typed so far is a correct
-// prefix. Characters from here onward render in the error colour.
-const firstError = (w: WordState): number => {
-  const n = Math.min(w.typed.length, w.original.length)
-  for (let i = 0; i < n; i++) {
-    if (w.typed[i] !== w.original[i]) return i
-  }
-  return w.typed.length > w.original.length ? w.original.length : -1
-}
+// A typed character is wrong if it doesn't match the original at that position,
+// or it runs past the end of the original word.
+const isTypedCharWrong = (w: WordState, i: number): boolean =>
+  i >= w.original.length || w.typed[i] !== w.original[i]
+
+// Render whitespace visibly in the popover, otherwise a mistyped space is invisible.
+const displayChar = (ch: string): string => (/\s/.test(ch) ? '␣' : ch)
 
 const updateCurrentWordState = () => {
   const cur = words.value[currentIndex.value]
@@ -195,14 +192,21 @@ onUnmounted(() => {
           v-for="(char, cIdx) in wordObj.original"
           :key="cIdx"
           class="relative"
-          :class="firstError(wordObj) !== -1 && cIdx >= firstError(wordObj)
-            ? 'text-[#f92672] bg-[#f92672]/20'
-            : 'text-[#f8f8f2]'"
+          :class="{
+            'text-[#f8f8f2]': cIdx < wordObj.typed.length && wordObj.typed[cIdx] === char,
+            'text-[#f92672] bg-[#f92672]/20': cIdx < wordObj.typed.length && wordObj.typed[cIdx] !== char,
+            'text-[#75715e]': cIdx >= wordObj.typed.length
+          }"
         ><!-- Blinking underline cursor UNDER the next character to type --><span v-if="cIdx === wordObj.typed.length" class="absolute left-0 right-0 -bottom-1 h-[3px] bg-[#f8f8f2] animate-pulse z-10"></span>{{ char }}</span>
 
-        <!-- Popover showing what was actually mistyped (full input) -->
+        <!-- Popover showing what was actually mistyped (full input), spaces as ␣,
+             wavy underline under the wrong characters. -->
         <div v-if="wordObj.state === 'incorrect' && wordObj.original.trim().length > 0" class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-[#f92672] text-white text-base px-3 py-1 rounded shadow-lg whitespace-nowrap z-50">
-          {{ wordObj.typed }}
+          <span
+            v-for="(ch, i) in wordObj.typed"
+            :key="i"
+            :class="{ 'underline decoration-wavy decoration-2 underline-offset-2': isTypedCharWrong(wordObj, i) }"
+          >{{ displayChar(ch) }}</span>
           <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#f92672] rotate-45"></div>
         </div>
       </template>
