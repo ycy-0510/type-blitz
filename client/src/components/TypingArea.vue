@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { playSound } from '../sound'
+import { playSound, setTypingCapture } from '../sound'
 
 const props = defineProps<{
   quote: string
@@ -107,8 +107,7 @@ const handleKeydown = (e: KeyboardEvent) => {
       const expectedChar = cur.original[cur.typed.length - 1]
       playSound(e.key === expectedChar ? 'click' : 'error')
       updateCurrentWordState()
-      emitProgress()
-      
+
       if (cur.state === 'correct' && cur.typed === cur.original) {
         currentIndex.value++
         if (currentIndex.value < words.value.length) {
@@ -117,6 +116,10 @@ const handleKeydown = (e: KeyboardEvent) => {
           emit('finish')
         }
       }
+      // Emit AFTER advancing: while a just-finished word is still at
+      // currentIndex its state is 'correct' (not 'current'), so emitProgress
+      // would count it as 0 and the car would jerk backwards for one keystroke.
+      emitProgress()
     }
   }
 }
@@ -159,12 +162,17 @@ const handleCompositionStart = () => {
   if (props.isActive) imeActive.value = true
 }
 
+// Tell the global keystroke sound (App.vue) to stand down while this field is
+// live, so it doesn't double up on our own correct/error keystroke sounds.
+watch(() => props.isActive, (active) => setTypingCapture(active), { immediate: true })
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown, { capture: true })
   window.addEventListener('compositionstart', handleCompositionStart, { capture: true })
 })
 
 onUnmounted(() => {
+  setTypingCapture(false)
   window.removeEventListener('keydown', handleKeydown, { capture: true })
   window.removeEventListener('compositionstart', handleCompositionStart, { capture: true })
 })

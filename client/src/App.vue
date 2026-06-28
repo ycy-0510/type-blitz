@@ -1,5 +1,20 @@
 <script setup lang="ts">
-// App.vue is just a router wrapper now
+import { onMounted, onUnmounted } from 'vue'
+import { playSound, isTypingCapture } from './sound'
+
+// App-wide keystroke "thock" on every key press. The race typing field plays
+// its own correct/error sounds, so we defer to it (isTypingCapture) to avoid
+// doubling. Modifier-only keys, shortcuts and IME composition are ignored.
+const onGlobalKey = (e: KeyboardEvent) => {
+  if (isTypingCapture()) return
+  if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
+  if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+    playSound('click')
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onGlobalKey, { capture: true }))
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKey, { capture: true }))
 </script>
 
 <template>
