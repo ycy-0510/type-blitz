@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
-import { playSound, isTypingCapture } from './sound'
+import { playSound } from './sound'
 
-// App-wide keystroke "thock" on every key press. The race typing field plays
-// its own correct/error sounds, so we defer to it (isTypingCapture) to avoid
-// doubling. Modifier-only keys, shortcuts and IME composition are ignored.
-const onGlobalKey = (e: KeyboardEvent) => {
-  if (isTypingCapture()) return
-  if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
-  if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+// "Thock" when clicking interactive UI (buttons, links, role=button, and the
+// clickable cards which are plain divs marked with `cursor-pointer`). Keystroke
+// sounds are handled only inside the typing game (see TypingArea.vue).
+const onGlobalPointer = (e: PointerEvent) => {
+  const el = e.target as HTMLElement | null
+  if (el?.closest('button, a, [role="button"], .cursor-pointer')) {
     playSound('click')
   }
 }
 
-onMounted(() => window.addEventListener('keydown', onGlobalKey, { capture: true }))
-onUnmounted(() => window.removeEventListener('keydown', onGlobalKey, { capture: true }))
+onMounted(() => window.addEventListener('pointerdown', onGlobalPointer, { capture: true }))
+onUnmounted(() => window.removeEventListener('pointerdown', onGlobalPointer, { capture: true }))
 </script>
 
 <template>

@@ -26,13 +26,6 @@ const getNoise = (ctx: AudioContext): AudioBuffer => {
   return noiseBuffer
 }
 
-// While a race typing field is actively capturing input it plays its own
-// correct/error keystroke sounds. The global app-wide keystroke click (see
-// App.vue) defers to it via this flag so keys aren't sounded twice.
-let typingCapture = false
-export const setTypingCapture = (on: boolean) => { typingCapture = on }
-export const isTypingCapture = () => typingCapture
-
 // Keystroke feedback: 'click' for correct, 'error' for wrong key.
 export const playSound = (type: 'click' | 'error') => {
   const ctx = getCtx()
