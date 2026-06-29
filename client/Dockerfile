@@ -8,6 +8,11 @@ COPY . .
 ARG VITE_TURNSTILE_SITE_KEY
 ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 
+# Build id (YYMMDD.NN) computed by CI from git — the build context has no .git,
+# so it must be injected here rather than derived in vite.config.ts.
+ARG VITE_BUILD
+ENV VITE_BUILD=$VITE_BUILD
+
 RUN npm run build
 
 FROM nginx:alpine

@@ -61,6 +61,7 @@ export const store = reactive({
   myId: '',
   isSinglePlayer: false,
   matchStartAt: 0, // server-provided countdown anchor (epoch ms) for multiplayer
+  serverBuild: '', // build id reported by the server on connect (see 'server_info')
   history: loadHistory(),
   
   saveNickname(name: string) {
@@ -120,6 +121,10 @@ export const store = reactive({
 // Global socket listeners
 socket.on('connect', () => {
   store.myId = socket.id || ''
+})
+
+socket.on('server_info', (info: { build?: string }) => {
+  store.serverBuild = info?.build || ''
 })
 
 socket.on('room_update', (roomState: RoomState) => {

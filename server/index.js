@@ -3,9 +3,36 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { execSync } from 'node:child_process';
+
+// Server build identifier, mirroring the client's. Format: YYMMDD.NN
+//   YYMMDD = commit date, NN = number of commits on that day.
+// Computed from git so it matches the client built from the same commit; CI sets
+// BUILD explicitly (its Docker context has no .git) to the very same value.
+// Sent to each client on connect (see 'server_info') and exposed at GET /version.
+function buildId() {
+  if (process.env.BUILD) return process.env.BUILD;
+  try {
+    const day = execSync('git show -s --format=%cd --date=format:%y%m%d HEAD').toString().trim();
+    const full = execSync('git show -s --format=%cd --date=format:%Y-%m-%d HEAD').toString().trim();
+    const n = execSync('git log --pretty=%cd --date=format:%Y-%m-%d').toString().trim()
+      .split('\n').filter((d) => d === full).length;
+    return `${day}.${String(n).padStart(2, '0')}`;
+  } catch {
+    const d = new Date();
+    const day = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    return `${day}.00`; // .00 = local/unstamped build (no git history available)
+  }
+}
+const BUILD = buildId();
 
 const app = express();
 app.use(cors());
+
+// Lightweight version/health endpoint.
+app.get('/version', (req, res) => {
+  res.json({ build: BUILD });
+});
 
 // --- Cloudflare Turnstile verification ---
 const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY;
@@ -68,6 +95,9 @@ const rooms = new Map();
 
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
+
+  // Let the client display the running server build (e.g. in "What's New").
+  socket.emit('server_info', { build: BUILD });
 
   const updateRoom = (roomId) => {
     const room = rooms.get(roomId);
@@ -296,5 +326,6 @@ io.on('connection', (socket) => {
 });
 
 httpServer.listen(PORT, () => {
+  console.log(`TypeBlitz server — Build ${BUILD}`);
   console.log(`Server listening on port ${PORT}`);
 });

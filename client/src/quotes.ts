@@ -24,7 +24,15 @@ export function loadQuotes(): Promise<void> {
         return r.json()
       })
       .then((data: Quote[]) => {
-        quotes.splice(0, quotes.length, ...data)
+        // A passage must never start with punctuation/whitespace, otherwise the
+        // very first thing you'd have to type is a stray symbol (e.g. a leading
+        // quote mark, dash, or bracket). Drop any leading non-alphanumeric run so
+        // typing always begins on a real word. Texts are normalised to ASCII.
+        const cleaned = data.map((q) => ({
+          ...q,
+          text: q.text.replace(/^[^A-Za-z0-9]+/, ''),
+        }))
+        quotes.splice(0, quotes.length, ...cleaned)
       })
       .catch((err) => {
         console.error('Failed to load quotes.json', err)
