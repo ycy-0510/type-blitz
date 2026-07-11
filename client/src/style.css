@@ -8,6 +8,30 @@
   font-display: swap;
 }
 
+/* Chinese race fonts. Standard: LXGW WenKai TC (霞鶩文楷). Backup: Bpmf Iansui
+   (注音芫荽) renders zhuyin ruby beside every character — toggled in-race with
+   Cmd/Ctrl+/ for players who don't know a character's zhuyin yet. Browsers only
+   download a face when rendered text actually uses it, so English players never
+   pay for these. */
+@font-face {
+  font-family: 'LXGW WenKai TC';
+  src: url('./assets/LXGWWenKaiTC-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bpmf Iansui';
+  src: url('./assets/BpmfIansui-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+.font-zh {
+  font-family: 'LXGW WenKai TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+}
+.font-zh-zhuyin {
+  font-family: 'Bpmf Iansui', 'LXGW WenKai TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+}
+
 :root {
     --bg-color: #272822;
     --text-untyped: #75715e;

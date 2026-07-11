@@ -3,10 +3,14 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, socket } from '../store'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   wpm: number
   accuracy: number
-}>()
+  language?: 'en' | 'zh'
+}>(), { language: 'en' })
+
+// Chinese races measure characters per minute, not words per minute.
+const speedLabel = computed(() => (props.language === 'zh' ? 'CPM' : 'WPM'))
 
 const emit = defineEmits<{
   (e: 'again'): void
@@ -16,16 +20,18 @@ const router = useRouter()
 const showButtons = ref(false)
 
 const performanceMessage = computed(() => {
-  const pastHistory = store.history.slice(1) // exclude current match
+  // Compare only against races of the same language — WPM and CPM don't mix.
+  const pastHistory = store.history.slice(1)
+    .filter(r => (r.language ?? 'en') === props.language)
   if (pastHistory.length === 0) return ''
-  
+
   const pastMax = Math.max(...pastHistory.map(r => r.wpm))
   const pastAvg = Math.round(pastHistory.reduce((acc, r) => acc + r.wpm, 0) / pastHistory.length)
-  
+
   if (props.wpm > pastMax) {
-    return `🎉 New Personal Best! Beat your previous record of ${pastMax} WPM!`
+    return `🎉 New Personal Best! Beat your previous record of ${pastMax} ${speedLabel.value}!`
   } else if (props.wpm > pastAvg) {
-    return `📈 Great job! You scored above your average of ${pastAvg} WPM!`
+    return `📈 Great job! You scored above your average of ${pastAvg} ${speedLabel.value}!`
   }
   return ''
 })
@@ -46,6 +52,7 @@ onMounted(() => {
   
   store.saveRecord({
     mode: store.isSinglePlayer ? 'single' : 'multi',
+    language: props.language,
     wpm: props.wpm,
     accuracy: props.accuracy,
     rank: ranking.value,
@@ -102,7 +109,7 @@ const handleLeave = () => {
         <div v-if="ranking" class="text-xl mb-4 text-[#f8f8f2]">Rank: <span class="text-[#f92672] font-bold text-2xl">#{{ ranking }}</span></div>
         <div class="flex justify-around">
           <div>
-            <div class="text-gray-500 text-sm">WPM</div>
+            <div class="text-gray-500 text-sm">{{ speedLabel }}</div>
             <div class="text-4xl font-bold text-white">{{ wpm }}</div>
           </div>
           <div>

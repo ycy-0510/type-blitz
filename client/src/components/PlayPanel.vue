@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { store, socket } from '../store'
+import { store, socket, type Language } from '../store'
 import Turnstile from './Turnstile.vue'
 import MatchHistory from './MatchHistory.vue'
 
@@ -22,6 +22,10 @@ const onExpired = () => { turnstileToken.value = null }
 
 const creating = ref(false)
 const createError = ref('')
+
+// Race language — applies to solo play and to rooms created here (the room
+// carries it to everyone who joins).
+const setLanguage = (lang: Language) => store.saveLanguage(lang)
 
 const handleSinglePlayer = () => {
   store.reset()
@@ -79,7 +83,7 @@ const submitNickname = async () => {
   socket.on('room_created', onCreated)
   socket.on('room_error', onError)
 
-  socket.emit('create_room', { nickname: store.nickname, token: turnstileToken.value })
+  socket.emit('create_room', { nickname: store.nickname, token: turnstileToken.value, language: store.language })
 }
 
 const closeModal = () => {
@@ -111,6 +115,20 @@ const closeModal = () => {
         </h1>
       </div>
 
+      <!-- Language selector: English (WPM) or Traditional Chinese (CPM, IME) -->
+      <div class="flex rounded-full border border-gray-700 bg-[#1e1e1e] p-1 select-none">
+        <button
+          @click="setLanguage('en')"
+          class="px-6 py-1.5 rounded-full text-sm font-bold tracking-widest transition-colors"
+          :class="store.language === 'en' ? 'bg-[#a6e22e] text-black' : 'text-gray-400 hover:text-white'"
+        >ENGLISH</button>
+        <button
+          @click="setLanguage('zh')"
+          class="px-6 py-1.5 rounded-full text-sm font-bold tracking-widest transition-colors"
+          :class="store.language === 'zh' ? 'bg-[#a6e22e] text-black' : 'text-gray-400 hover:text-white'"
+        >CHINESE</button>
+      </div>
+
       <div class="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
         <!-- Single Player Card -->
         <div
@@ -139,14 +157,13 @@ const closeModal = () => {
     </div>
 
     <!-- Text attribution (Wikipedia, CC BY-SA 4.0) -->
-    <a
-      href="/quotes-credits.html"
-      target="_blank"
-      rel="noopener"
-      class="fixed bottom-3 left-4 text-gray-600 hover:text-gray-300 text-xs z-10"
-    >
-      Texts: Wikipedia · CC BY-SA 4.0
-    </a>
+    <div class="fixed bottom-3 left-4 text-gray-600 text-xs z-10">
+      <a href="/quotes-credits.html" target="_blank" rel="noopener" class="hover:text-gray-300">
+        Texts: Wikipedia · CC BY-SA 4.0
+      </a>
+      <span class="mx-1">·</span>
+      <a href="/quotes-zh-credits.html" target="_blank" rel="noopener" class="hover:text-gray-300">Chinese</a>
+    </div>
 
     <!-- Match history (floating button + modal) -->
     <MatchHistory />

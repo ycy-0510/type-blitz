@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, socket } from '../store'
-import { quotes } from '../quotes'
+import { quotes, quotesZh } from '../quotes'
 import { playBeep, playFinish } from '../sound'
 import TypingArea from '../components/TypingArea.vue'
 import Report from './Report.vue'
@@ -22,23 +22,32 @@ let pausedAt = 0
 const startTime = ref<number | null>(null)
 const timerInterval = ref<any>(null)
 
+// Race language: rooms carry the host's choice; solo uses the local setting.
+const language = computed(() => store.room?.language ?? store.language)
+const activeQuotes = computed(() => (language.value === 'zh' ? quotesZh : quotes))
+
 // Single-player quote index — a stable ref so the quote doesn't change on
 // unrelated re-renders, and can be deliberately re-rolled on "play again".
-const singleQuoteIndex = ref(Math.floor(Math.random() * quotes.length))
+const singleQuoteIndex = ref(Math.floor(Math.random() * activeQuotes.value.length))
 const quote = computed(() => {
-  if (store.room) return quotes[store.room.quoteIndex]
-  if (store.isSinglePlayer) return quotes[singleQuoteIndex.value]
-  return quotes[0]
+  if (store.room) return activeQuotes.value[store.room.quoteIndex]
+  if (store.isSinglePlayer) return activeQuotes.value[singleQuoteIndex.value]
+  return activeQuotes.value[0]
 })
+
+// Chinese speed is measured in characters per minute (CPM); English in WPM.
+const speedLabel = computed(() => (language.value === 'zh' ? 'CPM' : 'WPM'))
 
 const wpm = ref(0)
 const accuracy = ref(100)
 const totalKeystrokes = ref(0)
 const myProgress = ref(0) // 0-100, this player's car position
 
-// Hard time limit: the time it would take to type the whole quote at 20 WPM.
-// 20 WPM => (len/5)/20 minutes => len * 600 ms. If unfinished by then, force stop.
-const timeLimitMs = computed(() => Math.round(quote.value.text.length * 600))
+// Hard time limit. English: the time to type the whole quote at 20 WPM —
+// (len/5)/20 minutes => len * 600 ms. Chinese: a 10 CPM floor (IME typing is
+// much slower per character) => len * 6000 ms. If unfinished by then, force stop.
+const timeLimitMs = computed(() =>
+  Math.round(quote.value.text.length * (language.value === 'zh' ? 6000 : 600)))
 const deadlineAt = ref(0)
 const timeLeftMs = ref(0)
 const timeLeftLabel = computed(() => {
@@ -130,7 +139,7 @@ const startCountdown = (startAt: number) => {
 const restartSingle = () => {
   clearInterval(timerInterval.value)
   cancelAnimationFrame(countdownRaf)
-  singleQuoteIndex.value = Math.floor(Math.random() * quotes.length)
+  singleQuoteIndex.value = Math.floor(Math.random() * activeQuotes.value.length)
   wpm.value = 0
   accuracy.value = 100
   totalKeystrokes.value = 0
@@ -242,17 +251,19 @@ const resumeFocus = () => {
   focused.value = true
 }
 
-const handleProgress = ({ correctCount }: { correctCount: number }) => {
+const handleProgress = ({ correctCount, strokes }: { correctCount: number; strokes: number }) => {
   if (!isGameActive.value) return
   // Solo: begin timing on the first keystroke (no countdown).
   if (!startTime.value) startClock()
 
-  totalKeystrokes.value++
+  // An IME commit can deliver several characters in one event.
+  totalKeystrokes.value += strokes || 1
 
   const elapsed = (Date.now() - (startTime.value ?? Date.now())) / 60000 // minutes
   const safeTime = Math.max(elapsed, 0.01)
 
-  wpm.value = Math.round((correctCount / 5) / safeTime)
+  // English: standard WPM (5 chars = 1 word). Chinese: characters per minute.
+  wpm.value = Math.round(correctCount / (language.value === 'zh' ? 1 : 5) / safeTime)
   accuracy.value = Math.round((correctCount / totalKeystrokes.value) * 100)
 
   const progressPercent = (correctCount / quote.value.text.length) * 100
@@ -302,7 +313,7 @@ const handleFinish = () => {
     <!-- Header Stats -->
     <header class="w-full max-w-5xl flex justify-between items-center px-8 text-gray-400 text-lg mb-8">
       <div class="flex gap-6">
-        <div><span class="opacity-50">WPM:</span> <span class="font-bold text-white">{{ wpm }}</span></div>
+        <div><span class="opacity-50">{{ speedLabel }}:</span> <span class="font-bold text-white">{{ wpm }}</span></div>
         <div><span class="opacity-50">ACC:</span> <span class="font-bold text-white">{{ accuracy }}%</span></div>
       </div>
       <!-- Time remaining — only once the clock is running (solo: after first key) -->
@@ -340,6 +351,7 @@ const handleFinish = () => {
         v-if="roomStatus === 'finished'"
         :wpm="wpm"
         :accuracy="accuracy"
+        :language="language"
         @again="restartSingle"
       />
 
@@ -347,6 +359,7 @@ const handleFinish = () => {
         <TypingArea
           :quote="quote.text"
           :isActive="isGameActive && focused"
+          :language="language"
           @progress="handleProgress"
           @finish="handleFinish"
         />

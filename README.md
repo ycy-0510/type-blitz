@@ -88,6 +88,7 @@ Environment variables (see the `.env.example` files):
 | `TURNSTILE_SITE_KEY` | client (build time) | Cloudflare Turnstile public site key, embedded into the bundle. Leave empty to disable the widget. |
 | `TURNSTILE_SECRET_KEY` | server | Turnstile secret used to verify tokens. Leave empty to disable verification (local only). |
 | `QUOTE_COUNT` | server | Number of passages in `client/public/quotes.json`; the server picks a random index in `[0, QUOTE_COUNT)`. Defaults to 3000. |
+| `QUOTE_COUNT_ZH` | server | Number of passages in `client/public/quotes-zh.json` (Traditional Chinese corpus, regenerate with `scripts/generate-zh-quotes.py`). Defaults to 2000. |
 | `PORT` | server | Server listen port (default 3001). |
 
 Cloudflare provides always-pass dummy Turnstile keys for testing; see the

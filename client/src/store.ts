@@ -13,11 +13,15 @@ interface Player {
   rematch?: boolean
 }
 
+export type Language = 'en' | 'zh'
+
 interface RoomState {
   id: string
   players: Record<string, Player>
   status: 'waiting' | 'playing' | 'finished'
   quoteIndex: number
+  // Set by the host at creation; every player races the same-language corpus.
+  language?: Language
 }
 
 // Connect same-origin: Socket.IO talks to /socket.io on whatever host serves
@@ -31,6 +35,8 @@ export interface MatchRecord {
   id: string
   date: string
   mode: 'single' | 'multi'
+  // Chinese races record speed in characters per minute (CPM), not WPM.
+  language?: Language
   wpm: number
   accuracy: number
   rank?: number | null
@@ -55,6 +61,8 @@ const loadHistory = (): MatchRecord[] => {
 
 export const store = reactive({
   nickname: localStorage.getItem('typeblitz_nickname') || '',
+  // Preferred race language: applies to single player and to rooms you create.
+  language: (localStorage.getItem('typeblitz_language') === 'zh' ? 'zh' : 'en') as Language,
   roomId: '',
   isHost: false,
   room: null as RoomState | null,
@@ -67,6 +75,11 @@ export const store = reactive({
   saveNickname(name: string) {
     this.nickname = name
     localStorage.setItem('typeblitz_nickname', name)
+  },
+
+  saveLanguage(lang: Language) {
+    this.language = lang
+    localStorage.setItem('typeblitz_language', lang)
   },
 
   saveRecord(record: Omit<MatchRecord, 'id' | 'date'>) {

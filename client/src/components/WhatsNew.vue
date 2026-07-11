@@ -16,9 +16,9 @@ const STORAGE_KEY = 'typeblitz_whatsnew'
 
 // Recent highlights, in US-sign ALL CAPS.
 const highlights = [
-  'KEYSTROKE SOUND FX',
-  'MATCH HISTORY',
-  'CLEANER PASSAGES',
+  'CHINESE TYPING RACE',
+  'IME + ZHUYIN FONT (CTRL+/)',
+  'SMOOTHER TYPING ENGINE',
 ]
 
 const dismissed = ref(localStorage.getItem(STORAGE_KEY) === WHATS_NEW_REV)

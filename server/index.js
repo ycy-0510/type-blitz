@@ -79,11 +79,14 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3001;
 
-// Number of typing passages the client bundles (public/quotes.json). Used to
-// pick a valid random index. Override with QUOTE_COUNT if the list size changes.
+// Number of typing passages the client bundles, per language (public/quotes.json
+// and public/quotes-zh.json). Used to pick a valid random index. Override with
+// QUOTE_COUNT / QUOTE_COUNT_ZH if the list sizes change.
 const QUOTE_COUNT = parseInt(process.env.QUOTE_COUNT || '3000', 10);
-function randomQuoteIndex() {
-  return Math.floor(Math.random() * QUOTE_COUNT);
+const QUOTE_COUNT_ZH = parseInt(process.env.QUOTE_COUNT_ZH || '2000', 10);
+function randomQuoteIndex(language) {
+  const count = language === 'zh' ? QUOTE_COUNT_ZH : QUOTE_COUNT;
+  return Math.floor(Math.random() * count);
 }
 
 // Generate 16 char random ID
@@ -117,11 +120,16 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Race language is fixed at creation and carried in room state so every
+    // joiner races the same corpus ('en' unless the host chose Chinese).
+    const language = (typeof payload === 'object' && payload?.language === 'zh') ? 'zh' : 'en';
+
     const roomId = generateId();
     const newRoom = {
       id: roomId,
       status: 'waiting',
-      quoteIndex: randomQuoteIndex(),
+      language,
+      quoteIndex: randomQuoteIndex(language),
       players: {
         [socket.id]: {
           id: socket.id,
@@ -201,8 +209,8 @@ io.on('connection', (socket) => {
       }
 
       room.status = 'playing';
-      // Assign new quote
-      room.quoteIndex = randomQuoteIndex();
+      // Assign new quote (from the room's language corpus)
+      room.quoteIndex = randomQuoteIndex(room.language);
 
       // Reset all players
       Object.values(room.players).forEach(p => {

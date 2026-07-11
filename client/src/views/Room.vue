@@ -151,7 +151,13 @@ const leaveRoom = () => {
     <div v-else class="w-full max-w-4xl h-[80vh] bg-[#1e1e1e] rounded-xl border border-gray-700 p-6 flex flex-col shadow-2xl">
       <div class="flex justify-between items-center border-b border-gray-700 pb-4 mb-4">
         <div>
-          <h2 class="text-2xl font-bold text-white tracking-wider">ROOM <span class="text-[#f92672]">{{ roomId }}</span></h2>
+          <h2 class="text-2xl font-bold text-white tracking-wider">
+            ROOM <span class="text-[#f92672]">{{ roomId }}</span>
+            <span
+              v-if="store.room?.language === 'zh'"
+              class="ml-2 align-middle text-xs font-bold px-2 py-1 rounded bg-[#66d9ef]/20 text-[#66d9ef] tracking-normal"
+            >CHINESE</span>
+          </h2>
           <p class="text-gray-400 text-sm mt-1">Players: {{ playersList.length }} / 40</p>
         </div>
         <button @click="leaveRoom" class="border border-gray-600 text-gray-400 px-4 py-2 rounded hover:bg-gray-800 hover:text-white transition">Leave</button>

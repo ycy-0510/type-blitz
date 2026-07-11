@@ -29,7 +29,7 @@ const showRecords = ref(false)
             <tr class="text-gray-500 border-b border-gray-800 text-sm">
               <th class="py-3 px-4 font-normal">DATE</th>
               <th class="py-3 px-4 font-normal">MODE</th>
-              <th class="py-3 px-4 text-right font-normal">WPM</th>
+              <th class="py-3 px-4 text-right font-normal">WPM / CPM</th>
               <th class="py-3 px-4 text-right font-normal">ACCURACY</th>
               <th class="py-3 px-4 text-center font-normal">RANK</th>
             </tr>
@@ -41,8 +41,9 @@ const showRecords = ref(false)
                 <span class="text-xs font-bold px-2 py-1 rounded" :class="record.mode === 'single' ? 'bg-[#a6e22e]/20 text-[#a6e22e]' : 'bg-[#f92672]/20 text-[#f92672]'">
                   {{ record.mode.toUpperCase() }}
                 </span>
+                <span v-if="record.language === 'zh'" class="ml-1 text-xs font-bold px-2 py-1 rounded bg-[#66d9ef]/20 text-[#66d9ef]">ZH</span>
               </td>
-              <td class="py-3 px-4 text-right font-bold text-white text-lg">{{ record.wpm }}</td>
+              <td class="py-3 px-4 text-right font-bold text-white text-lg">{{ record.wpm }}<span v-if="record.language === 'zh'" class="text-xs text-gray-500 font-normal ml-1">CPM</span></td>
               <td class="py-3 px-4 text-right text-gray-300">{{ record.accuracy }}%</td>
               <td class="py-3 px-4 text-center">
                 <span v-if="record.mode === 'multi' && record.rank" class="text-gray-300">
