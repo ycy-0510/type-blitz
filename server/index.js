@@ -26,6 +26,10 @@ function buildId() {
 }
 const BUILD = buildId();
 
+// Traffic-light countdown before a multiplayer match starts. Kept in sync with
+// COUNTDOWN_MS in client/src/views/Competition.vue (the client's fallback).
+const COUNTDOWN_MS = 3000;
+
 const app = express();
 app.use(cors());
 
@@ -222,8 +226,8 @@ io.on('connection', (socket) => {
       });
 
       // Shared countdown anchor: everyone counts down to the same wall-clock
-      // moment instead of each client running its own independent 10s timer.
-      const startAt = Date.now() + 10000;
+      // moment instead of each client running its own independent 3s timer.
+      const startAt = Date.now() + COUNTDOWN_MS;
       room.startAt = startAt;
 
       updateRoom(roomId);

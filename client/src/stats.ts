@@ -2,7 +2,7 @@
 // locally-stored match history (see store.ts). 0-WPM runs are already filtered
 // out of history, but we defensively guard against them here too.
 
-import type { MatchRecord } from './store'
+import type { Language, MatchRecord } from './store'
 
 export interface MetricStats {
   avg: number
@@ -19,6 +19,18 @@ export interface GrowthRow {
 }
 
 const DAY_MS = 86_400_000
+
+// English speed is WPM, Chinese is CPM — the two are on completely different
+// scales, so every derived statistic is computed per language, never pooled.
+// Records saved before the Chinese mode existed carry no `language`; they were
+// all English races.
+export function recordLanguage(r: MatchRecord): Language {
+  return r.language === 'zh' ? 'zh' : 'en'
+}
+
+export function byLanguage(records: MatchRecord[], lang: Language): MatchRecord[] {
+  return records.filter((r) => recordLanguage(r) === lang)
+}
 
 function mean(xs: number[]): number {
   if (!xs.length) return 0

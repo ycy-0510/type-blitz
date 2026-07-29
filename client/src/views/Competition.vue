@@ -9,7 +9,9 @@ import Report from './Report.vue'
 
 const router = useRouter()
 
-const COUNTDOWN_MS = 10000
+// Fallback countdown when the server didn't hand us an anchor. Kept in sync
+// with COUNTDOWN_MS in server/index.js.
+const COUNTDOWN_MS = 3000
 const countdown = ref(0)
 let countdownRaf = 0
 const roomStatus = ref<'playing' | 'finished'>('playing')
@@ -303,8 +305,8 @@ const handleFinish = () => {
     <!-- Countdown Traffic Light -->
     <div v-if="countdown > 0" class="absolute top-24 left-1/2 transform -translate-x-1/2 z-40 flex flex-col items-center gap-4 bg-[#1e1e1e] border-2 border-gray-700 p-6 rounded-2xl shadow-2xl">
       <div class="flex gap-4 mb-2 bg-black p-4 rounded-xl border border-gray-800">
-        <div class="w-12 h-12 rounded-full transition-all duration-300" :class="countdown > 3 ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 'bg-gray-800'"></div>
-        <div class="w-12 h-12 rounded-full transition-all duration-300" :class="(countdown <= 3 && countdown > 0) ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.8)]' : 'bg-gray-800'"></div>
+        <div class="w-12 h-12 rounded-full transition-all duration-300" :class="countdown >= 3 ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 'bg-gray-800'"></div>
+        <div class="w-12 h-12 rounded-full transition-all duration-300" :class="(countdown < 3 && countdown > 0) ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.8)]' : 'bg-gray-800'"></div>
         <div class="w-12 h-12 rounded-full transition-all duration-300 bg-gray-800"></div>
       </div>
       <div class="text-4xl font-mono text-white font-bold tracking-widest">{{ countdown }}</div>

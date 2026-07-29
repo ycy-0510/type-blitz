@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { store } from '../store'
-import { metricStats, dayStreak, wpmGrowth } from '../stats'
+import type { Language } from '../store'
+import { metricStats, dayStreak, wpmGrowth, byLanguage } from '../stats'
 import Gauge from '../components/Gauge.vue'
 import MatchHistory from '../components/MatchHistory.vue'
 
@@ -29,13 +30,25 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
 })
 
-const wpm = computed(() => metricStats(store.history.map((r) => r.wpm)))
-const acc = computed(() => metricStats(store.history.map((r) => r.accuracy)))
-const streak = computed(() => dayStreak(store.history))
-const growth = computed(() => wpmGrowth(store.history))
+// English (WPM) and Chinese (CPM) races are scored on different scales, so the
+// dashboard shows one language at a time instead of pooling them. Defaults to
+// the language you currently race in.
+const lang = ref<Language>(store.language)
+const records = computed(() => byLanguage(store.history, lang.value))
+const zhCount = computed(() => byLanguage(store.history, 'zh').length)
+const enCount = computed(() => byLanguage(store.history, 'en').length)
+const speedLabel = computed(() => (lang.value === 'zh' ? 'CPM' : 'WPM'))
+const speedUnit = computed(() => (lang.value === 'zh' ? 'chars / min' : 'words / min'))
+
+const wpm = computed(() => metricStats(records.value.map((r) => r.wpm)))
+const acc = computed(() => metricStats(records.value.map((r) => r.accuracy)))
+const streak = computed(() => dayStreak(records.value))
+const growth = computed(() => wpmGrowth(records.value))
 
 // Round the gauge ceiling up to a tidy number a little above the best run.
-const wpmMax = computed(() => Math.max(120, Math.ceil((wpm.value.top + 10) / 20) * 20))
+// Chinese starts from a lower floor — IME typing yields far fewer CPM.
+const wpmMax = computed(() =>
+  Math.max(lang.value === 'zh' ? 60 : 120, Math.ceil((wpm.value.top + 10) / 20) * 20))
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 
@@ -71,15 +84,31 @@ function trend(pct: number | null) {
         </button>
       </header>
 
-      <p class="text-gray-500 text-sm -mt-2">
-        {{ wpm.count }} race{{ wpm.count === 1 ? '' : 's' }} recorded. Hit START to race again.
-      </p>
+      <!-- Language split: English and Chinese stats are tracked separately -->
+      <!-- Kept left-aligned: the "What's New" billboard hangs off the right edge. -->
+      <div class="flex flex-wrap items-center gap-3 -mt-2">
+        <div class="flex items-center gap-1 bg-[#1e1e1e] border border-gray-700 rounded-xl p-1">
+          <button
+            v-for="opt in [{ id: 'en' as Language, label: 'ENGLISH', n: enCount }, { id: 'zh' as Language, label: 'CHINESE', n: zhCount }]"
+            :key="opt.id"
+            @click="lang = opt.id"
+            class="px-4 py-1.5 rounded-lg text-xs font-bold tracking-widest transition-all"
+            :class="lang === opt.id ? 'bg-[#a6e22e] text-black' : 'text-gray-400 hover:text-white'"
+          >
+            {{ opt.label }}
+            <span class="ml-1 opacity-60 font-normal">{{ opt.n }}</span>
+          </button>
+        </div>
+        <p class="text-gray-500 text-sm">
+          {{ wpm.count }} {{ lang === 'zh' ? 'Chinese' : 'English' }} race{{ wpm.count === 1 ? '' : 's' }} recorded. Hit START to race again.
+        </p>
+      </div>
 
       <!-- Gauges -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Gauge
-          label="WPM"
-          unit="words / min"
+          :label="speedLabel"
+          :unit="speedUnit"
           :value="wpm.avg * progress"
           :min="0"
           :max="wpmMax"
@@ -134,7 +163,7 @@ function trend(pct: number | null) {
         <div class="bg-[#1e1e1e] border border-gray-700 rounded-2xl p-5 md:col-span-2">
           <div class="flex items-center justify-between mb-4">
             <span class="text-gray-400 tracking-widest text-xs font-bold">STABLE &amp; GROW</span>
-            <span class="text-gray-600 text-xs">WPM trend vs previous period</span>
+            <span class="text-gray-600 text-xs">{{ speedLabel }} trend vs previous period</span>
           </div>
           <div class="flex flex-col gap-3">
             <div v-for="g in growth" :key="g.days" class="flex items-center gap-3">

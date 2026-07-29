@@ -14,4 +14,4 @@ export const BUILD = (import.meta.env.VITE_BUILD as string | undefined) || 'dev'
 // something new to announce. Once a user dismisses a given revision it stays
 // hidden until this value changes again. Use today's date; add a `.N` suffix if
 // you bump more than once on the same day (e.g. '2026-06-30.2').
-export const WHATS_NEW_REV = '2026-07-11'
+export const WHATS_NEW_REV = '2026-07-29'
